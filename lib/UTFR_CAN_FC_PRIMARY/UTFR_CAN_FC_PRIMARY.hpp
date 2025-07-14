@@ -9,8 +9,8 @@ enum class msg_fc_primary_e {
 };
 
 enum class sig_fc_primary_e {
-  ENERGY,
   TEMP,
+  ENERGY,
 
   COUNT
 };

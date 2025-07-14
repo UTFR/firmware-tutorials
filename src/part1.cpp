@@ -1,11 +1,11 @@
 #include "UTFR_CAN_FC_PRIMARY.hpp"
 #include "UTFR_CAN_TEENSY.hpp"
 #include "UTFR_CAN_TEENSY.tpp"
-#include "portable/portmacro.h"
 #include <Arduino.h>
 #include <arduino_freertos.h>
 #include <cstdint>
-#include <semaphr.h>
+#include "queue.h"
+#include "semphr.h"
 
 static void pcan_rx_callback(const CAN_message_t &message);
 
@@ -66,8 +66,6 @@ void lcd_task(void) {
     xSemaphoreTake(pack_stats_mutex, portMAX_DELAY);
 
     // temp, energy
-    lcd.set_pos(0, 0);
-    lcd.printf("energy: %d\n", energy);
 
     xSemaphoreGive(pack_stats_mutex);
   }
