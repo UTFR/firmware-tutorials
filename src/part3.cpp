@@ -31,6 +31,7 @@ void counterTask(void *pvParameters) {
 
 void setup() {
   Serial.begin(115200);
+  while (!Serial) ; 
   countQueue = xQueueCreate(5, sizeof(int));
 
   if (countQueue != NULL) {
