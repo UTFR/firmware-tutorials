@@ -161,6 +161,93 @@ extern float bms_get_voltage(uint8_t n);
 */
 extern float bms_get_temperature(uint8_t n);
 
+/*1. Command each motor with an appropriate torque every 1ms*/
+
+/*read current*/
+float read_current() {
+  float adcValue = analogRead(19) /* pin number 19 = the current sensor*/
+  float current = adcValue * (1.0/10.0) /* i think adc reads voltage so this will convert it to amps - 1 amp per 10mV */
+  return current;
+}
+
+
+/* wheel speeds*/
+float wheel_speeds (){
+  int tooth_count = 0;
+  int last = high;
+
+void loop()
+int current = digitalRead(4); /*idk what pin to use so i just put 4 i cant figure out which one reads the wheel gpio values*/
+if (current == low && last == high){
+  int tooth_count = tooth_count + 1;
+  last = current;
+}
+
+float rotations = tooth_count / 17.0;
+float rpm = rotations / 60.0;
+return rpm;
+}
+
+/*Steering Angle Sensor
+extern void can_init(uint8_t rx, uint8_t tx, uint32_t baudrate);
+extern void can_receive(uint64_t *payload, uint8_t id);
+*/
+
+float angle (){
+  payload = uint64_t *payload;
+  float angle = can_receive(uint64_t *payload, uint8_t id);
+  return angle
+}
+
+/*final calcutioon for torque*/
+float current = read_current();
+float wheelspeeds = wheel_speeds();
+float steering_angle = angle();
+calculate_torque_cmd(
+  float *torques, float current, float *wheelspeeds, float steering_angle /* do i need to put arrays for this im a little lost*/
+);
+
+
+
+/*2. Print sensor values and torque values to the LCD every 100ms*/
+float display (){
+  void loop(){
+    print (current)
+    print(torque)
+    delay(100);
+  }
+
+}
+
+/*3. Monitor the highest/lowest voltage and highest temperature from the BMS and
+shutdown the car if there is any unsafe condition*/
+#define NUM_CELLS 12 /*how many cells ?*/
+
+digitalWrite(AIR_PLUS, LOW);     // disconnect high-voltage + terminal
+digitalWrite(PRECHARGE, LOW);    // turn off precharge relay
+digitalWrite(AIR_MINUS, LOW);    // disconnect high-voltage - terminal
+
+void check_bms() {
+    for (int i = 0; i < NUM_CELLS; i++) {
+        float v = bms_get_voltage(i);
+        float t = bms_get_temperature(i);
+
+        // Voltage too low or too high?
+        if (v < 2.8 || v > 4.3) {
+            shutdown_car();
+            return;
+        }
+
+        // Temperature too high?
+        if (t > 60) {
+            shutdown_car();
+            return;
+        }
+    }
+}
+
+
+
 void setup(void) {}
 
 void loop(void) {}
