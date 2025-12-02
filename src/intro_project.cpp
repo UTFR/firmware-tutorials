@@ -170,16 +170,19 @@ float read_current() {
   return current;
 }
 
+void loop(){
+
+}
 
 /* wheel speeds*/
 float wheel_speeds (){
   int tooth_count = 0;
   int last = high;
 
-void loop()
+
 int current = digitalRead(4); /*idk what pin to use so i just put 4 i cant figure out which one reads the wheel gpio values*/
 if (current == low && last == high){
-  int tooth_count = tooth_count + 1;
+  tooth_count = tooth_count + 1;
   last = current;
 }
 
@@ -187,6 +190,7 @@ float rotations = tooth_count / 17.0;
 float rpm = rotations / 60.0;
 return rpm;
 }
+/*^ try usng intruprt method arttach intrupt look it up online*/
 
 /*Steering Angle Sensor
 extern void can_init(uint8_t rx, uint8_t tx, uint32_t baudrate);
@@ -194,9 +198,9 @@ extern void can_receive(uint64_t *payload, uint8_t id);
 */
 
 float angle (){
-  payload = uint64_t *payload;
-  float angle = can_receive(uint64_t *payload, uint8_t id);
-  return angle
+  uint64_t payload;
+  can_receive(&payload, uint8_t id);
+  return payload
 }
 
 /*final calcutioon for torque*/
@@ -204,14 +208,14 @@ float current = read_current();
 float wheelspeeds = wheel_speeds();
 float steering_angle = angle();
 calculate_torque_cmd(
-  float *torques, float current, float *wheelspeeds, float steering_angle /* do i need to put arrays for this im a little lost*/
+  *torques, current, *wheelspeeds, steering_angle /* do i need to put arrays for this im a little lost*/
 );
 
 
 
 /*2. Print sensor values and torque values to the LCD every 100ms*/
 float display (){
-  void loop(){
+  {
     print (current)
     print(torque)
     delay(100);
