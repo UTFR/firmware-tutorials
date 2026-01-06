@@ -125,7 +125,7 @@ extern void can_send(uint8_t id, uint64_t payload);
 /*
   Receive a CAN message with a given id into a uint64_t
 */
-extern void can_receive(uint64_t *payload, uint8_t id);
+extern void can_receive(uint64_t *payload, uint8_t id); 
 
 /*
   Calculates four torques, in order, for the Front Left, Front Right, Rear Left,
@@ -161,26 +161,24 @@ extern float bms_get_voltage(uint8_t n);
 */
 extern float bms_get_temperature(uint8_t n);
 
+
+
+
 /*1. Command each motor with an appropriate torque every 1ms*/
 
 /*read current*/
 float read_current() {
-  float adcValue = analogRead(19) /* pin number 19 = the current sensor*/
-  float current = adcValue * (1.0/10.0) /* i think adc reads voltage so this will convert it to amps - 1 amp per 10mV */
+  float adcValue = analogRead(19); /* pin number 19 = the current sensor*/
+  float current = adcValue / 0.01f; /* i think adc reads voltage so this will convert it to amps - 1 amp per 10mV */
   return current;
 }
 
-void loop(){
-
-}
-
-/* wheel speeds*/
+/* wheel speeds 1
 float wheel_speeds (){
   int tooth_count = 0;
   int last = high;
 
-
-int current = digitalRead(4); /*idk what pin to use so i just put 4 i cant figure out which one reads the wheel gpio values*/
+int current = digitalRead(4); idk what pin to use so i just put 4 i cant figure out which one reads the wheel gpio values
 if (current == low && last == high){
   tooth_count = tooth_count + 1;
   last = current;
@@ -189,47 +187,66 @@ if (current == low && last == high){
 float rotations = tooth_count / 17.0;
 float rpm = rotations / 60.0;
 return rpm;
-}
-/*^ try usng intruprt method arttach intrupt look it up online*/
+^ try usng intruprt method arttach intrupt look it up online*/
 
-/*Steering Angle Sensor
-extern void can_init(uint8_t rx, uint8_t tx, uint32_t baudrate);
-extern void can_receive(uint64_t *payload, uint8_t id);
-*/
 
-float angle (){
-  uint64_t payload;
-  can_receive(&payload, uint8_t id);
-  return payload
+/* wheel speeds 2 (using intrupt method) */
+
+
+
+
+/*Steering Angle Sensor */
+
+float read_angle (){
+  uint64_t canmsg; //declares a 64-bit int variable
+  can_receive(&canmsg, 0x123);
+  
+  uint16_t raw_angle = canmsg & 0xFFFF;
+
+  float angle = raw_angle * 0.01;
+
+  return angle;
 }
+
 
 /*final calcutioon for torque*/
-float current = read_current();
-float wheelspeeds = wheel_speeds();
-float steering_angle = angle();
-calculate_torque_cmd(
-  *torques, current, *wheelspeeds, steering_angle /* do i need to put arrays for this im a little lost*/
-);
+void loop(
+  float current = read_current();
+  float wheelspeeds = wheel_speeds();
+  float steering_angle = read_angle();
 
+  float torque[4];
+  
+  float wheelspeed_array[1];
+  wheelspeed_array[0] = wheelspeeds;
+  
+  calculate_torque_cmd(torques, current, wheelspeed_array, steering_angle);
+)
 
 
 /*2. Print sensor values and torque values to the LCD every 100ms*/
-float display (){
-  {
-    print (current)
-    print(torque)
-    delay(100);
-  }
+uint32_t last_lcd_update = 0;
 
+void loop() {
+    uint32_t now = millis(); // the number of milliseconds passed since the Arduino board began running the current program
+    static uint32_t last_lcd_update = 0; //use static so it doesnt reset
+
+    if (now - last_lcd_update >= 100)
+    {
+      last_lcd_update = now;
+      lcd_printf("Current: %.2f A\nWheel RPM: %.2lf radians/second\nSteering Angle: %.2lf radians\n", current, wheel_speeds, angle);
+    }
 }
 
 /*3. Monitor the highest/lowest voltage and highest temperature from the BMS and
 shutdown the car if there is any unsafe condition*/
-#define NUM_CELLS 12 /*how many cells ?*/
+NUM_CELLS = 12; /*how many cells ?*/
 
-digitalWrite(AIR_PLUS, LOW);     // disconnect high-voltage + terminal
-digitalWrite(PRECHARGE, LOW);    // turn off precharge relay
-digitalWrite(AIR_MINUS, LOW);    // disconnect high-voltage - terminal
+void shutdown_car() {
+    digitalWrite(AIR_PLUS, LOW);   // de-energize positive relay
+    digitalWrite(AIR_MINUS, LOW);  // de-energize negative relay
+  }
+
 
 void check_bms() {
     for (int i = 0; i < NUM_CELLS; i++) {
@@ -249,9 +266,3 @@ void check_bms() {
         }
     }
 }
-
-
-
-void setup(void) {}
-
-void loop(void) {}
