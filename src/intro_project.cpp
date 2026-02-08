@@ -1,4 +1,6 @@
 #include <arduino_freertos.h>
+#include <semphr.h>
+#include <queue.h>
 #include <stdint.h>
 
 /*
@@ -112,6 +114,44 @@ you end up with lots of useless formatting changes. You should install
 clang-format as soon as possible and set it up :)
 */
 
+constexpr int TS_ON_PIN           = 12;
+constexpr int RTD_PIN             = 13;
+constexpr int CURRENT_SENSOR_PIN  = 19;
+constexpr int CAN_RX_PIN          = 2;
+constexpr int CAN_TX_PIN          = 3;
+constexpr int MOSI_PIN            = 5;
+constexpr int MISO_PIN            = 6;
+constexpr int SCK_PIN             = 7;
+constexpr int LCD_CS_PIN          = 8;
+constexpr int BMS_CS_PIN          = 9;
+constexpr int AIR_PLUS_PIN        = 22;
+constexpr int PRECHARGE_PIN       = 23;
+constexpr int AIR_MINUS_PIN       = 10;
+constexpr int WHEELSPEED_PIN      = 11; // 11 ??
+
+constexpr int BATTERIES_COUNT = 138;
+
+QueueHandle_t current_queue;
+
+volatile unsigned long wheel_speed_interval = 0;
+volatile unsigned long wheel_speed_last_pulse = 0;
+
+QueueHandle_t steering_angle_queue;
+
+volatile float bms_voltage_min = 0.0f;
+volatile float bms_voltage_max = 0.0f;
+volatile float bms_temperature_max = 0.0f;
+SemaphoreHandle_t bms_mutex;
+
+QueueHandle_t torques_queue;
+
+SemaphoreHandle_t can_mutex;
+SemaphoreHandle_t spi_mutex;
+
+constexpr int TaskPriority_LCD = 0;
+constexpr int TaskPriority_SENSOR = 1;
+constexpr int TaskPriority_BMS = 2;
+
 /*
   Initialize the CAN peripheral with given RX and TX pins at a given baudrate.
 */
@@ -161,6 +201,173 @@ extern float bms_get_voltage(uint8_t n);
 */
 extern float bms_get_temperature(uint8_t n);
 
-void setup(void) {}
+float sensor_current_read() {
+  static const float ADC_VREF_V = 3.3f;
+  static const float ADC_RESOLUTION = 1024.0f;
+  static const float ADC_CONVERSION = 0.01f;
+
+  int raw = analogRead(CURRENT_SENSOR_PIN);
+
+  float voltage_V = (raw * ADC_VREF_V) / ADC_RESOLUTION;
+  float current_A = voltage_V / ADC_CONVERSION;
+
+  return current_A;
+}
+
+void sensor_current_update(void *parameters) {
+  TickType_t last_wake_time = xTaskGetTickCount();
+  const TickType_t frequency = pdMS_TO_TICKS(1);
+
+  while (1) {
+    float new_current = sensor_current_read();
+    xQueueOverwrite(current_queue, &new_current);
+
+    vTaskDelayUntil(&last_wake_time, frequency);
+  }
+}
+
+float sensor_current_get(void) {
+  float current = 0.0f;
+  xQueueReceive(current_queue, &current, 0);
+
+  return current;
+}
+
+void sensor_wheel_speed_update(void) {
+  unsigned long current = micros();
+  wheel_speed_interval = current - wheel_speed_last_pulse;
+  wheel_speed_last_pulse = current;
+}
+
+float sensor_wheel_speed_get(void) {
+  return wheel_speed_interval * 17;
+}
+
+void sensor_steering_angle_update(void *parameters) {
+  TickType_t last_wake_time = xTaskGetTickCount();
+  const TickType_t frequency = pdMS_TO_TICKS(10);
+
+  while (1) {
+    uint64_t steering_angle_raw;
+  
+    if (xSemaphoreTake(can_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
+      can_receive(&steering_angle_raw, 0x1);
+      xSemaphoreGive(can_mutex);
+
+      float steering_angle = (float)steering_angle_raw;
+      xQueueOverwrite(steering_angle_queue, &steering_angle);
+    }
+
+    vTaskDelayUntil(&last_wake_time, frequency);
+  }
+}
+
+float sensor_steering_angle_get(void) {
+  float steering_angle = 0.0f;
+  xQueueReceive(steering_angle_queue, &steering_angle, 0);
+
+  return steering_angle;
+}
+
+void torque_update(void *parameters) {
+  TickType_t last_wake_time = xTaskGetTickCount();
+  const TickType_t frequency = pdMS_TO_TICKS(1);
+
+  while (1) {
+    float current = sensor_current_get();
+    float wheel_speed = sensor_wheel_speed_get();
+    float steering_angle = sensor_steering_angle_get();
+
+    float torques[4];
+    calculate_torque_cmd(torques, current, &wheel_speed, steering_angle);
+
+    if (xSemaphoreTake(can_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
+      can_send(0x2, torques[0]);
+      can_send(0x3, torques[1]);
+      can_send(0x4, torques[2]);
+      can_send(0x5, torques[3]);
+      xSemaphoreGive(can_mutex);
+    }
+
+    xQueueOverwrite(torques_queue, torques);
+
+    vTaskDelayUntil(&last_wake_time, frequency);
+  }
+}
+
+void lcd_update(void *parameters) {
+  TickType_t last_wake_time = xTaskGetTickCount();
+  const TickType_t frequency = pdMS_TO_TICKS(100);
+
+  while (1) {
+    if (xSemaphoreTake(spi_mutex, pdMS_TO_TICKS(100))) {
+      float current = sensor_current_get();
+      float wheel_speed = sensor_wheel_speed_get();
+      float steering_angle = sensor_steering_angle_get();
+
+      float torques[4];
+      xQueueReceive(torques_queue, torques, 0);
+
+      lcd_printf("current: %.3f A\n", current);
+      lcd_printf("wheel speed: %.3f RPM\n", wheel_speed);
+      lcd_printf("steering angle: %.3f degrees", steering_angle);
+      lcd_printf("torque\n\tFL: %.3f \tFR: %.3f\n\tRL: %.3f RR %.3f", torques[0], torques[1], torques[2], torques[3]);
+
+      xSemaphoreGive(spi_mutex);
+    }
+
+    vTaskDelayUntil(&last_wake_time, frequency);
+  }
+}
+
+void deenergize(void) {
+  digitalWrite(AIR_PLUS_PIN, arduino::LOW);
+  digitalWrite(AIR_MINUS_PIN, arduino::LOW);
+  digitalWrite(PRECHARGE_PIN, arduino::LOW);
+}
+
+void bms_monitoring_task(void *parameters) {
+  TickType_t last_wake_time = xTaskGetTickCount();
+  const TickType_t frequency = pdMS_TO_TICKS(50);
+
+  while (1) {
+    if (xSemaphoreTake(spi_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+      for (int i = 0; i < BATTERIES_COUNT; i++) {
+        float voltage = bms_get_voltage(i);
+        float temperature = bms_get_temperature(i);
+
+        if (voltage < 2.8f || voltage > 4.3f || temperature > 60.0f) {
+          xSemaphoreGive(spi_mutex);
+          deenergize();
+        }
+      }
+
+      xSemaphoreGive(spi_mutex);
+    }
+
+    vTaskDelayUntil(&last_wake_time, frequency);
+  }
+}
+
+void setup(void) {
+  current_queue = xQueueCreate(1, sizeof(float));
+  steering_angle_queue = xQueueCreate(1, sizeof(float));
+  torques_queue = xQueueCreate(1, sizeof(float) * 4);
+  can_mutex = xSemaphoreCreateMutex();
+
+  can_init(CAN_RX_PIN, CAN_TX_PIN, 250000); // 250000 ??
+  lcd_init(MOSI_PIN, MISO_PIN, SCK_PIN, LCD_CS_PIN);
+  bms_init(MOSI_PIN, MISO_PIN, SCK_PIN, BMS_CS_PIN);
+  
+  pinMode(WHEELSPEED_PIN, arduino::INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(WHEELSPEED_PIN), sensor_wheel_speed_update, arduino::FALLING);
+
+  xTaskCreate(sensor_current_update, "sensor_current_update", 1024, NULL, TaskPriority_SENSOR, NULL);
+  xTaskCreate(sensor_steering_angle_update, "sensor_steering_angle_update", 1024, NULL, TaskPriority_SENSOR, NULL);
+  xTaskCreate(bms_monitoring_task, "bms_monitoring_task", 1024, NULL, TaskPriority_BMS, NULL);
+  xTaskCreate(lcd_update, "lcd_update", 1024, NULL, TaskPriority_LCD, NULL);
+
+  vTaskStartScheduler();
+}
 
 void loop(void) {}
