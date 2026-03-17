@@ -152,6 +152,10 @@ constexpr int TaskPriority_LCD = 0;
 constexpr int TaskPriority_SENSOR = 1;
 constexpr int TaskPriority_BMS = 2;
 
+// handling states for transitions (state machine)
+enum class CarState { LV, TS, RTD };
+volatile CarState car_state = CarState::LV;
+
 /*
   Initialize the CAN peripheral with given RX and TX pins at a given baudrate.
 */
@@ -233,14 +237,15 @@ float sensor_current_get(void) {
   return current;
 }
 
-void sensor_wheel_speed_update(void) {
+void sensor_wheel_speed_update(void) { // the ISR to sensor_steering_angle_update
   unsigned long current = micros();
   wheel_speed_interval = current - wheel_speed_last_pulse;
   wheel_speed_last_pulse = current;
 }
 
-float sensor_wheel_speed_get(void) {
-  return wheel_speed_interval * 17;
+float sensor_wheel_speed_get(void) { ///////////////////// FIX THIS 
+    if (wheel_speed_interval == 0) return 0.0f; // avoid divide by zero
+    return (60.0f * 1000000.0f) / (17.0f * (float)wheel_speed_interval);
 }
 
 void sensor_steering_angle_update(void *parameters) {
@@ -274,12 +279,17 @@ void torque_update(void *parameters) {
   const TickType_t frequency = pdMS_TO_TICKS(1);
 
   while (1) {
+    if (car_state != CarState::RTD) {       // don't drive unless right state. Just extra safe gaurding 
+      vTaskDelayUntil(&last_wake_time, frequency);
+      continue;
+    }
     float current = sensor_current_get();
     float wheel_speed = sensor_wheel_speed_get();
     float steering_angle = sensor_steering_angle_get();
 
     float torques[4];
-    calculate_torque_cmd(torques, current, &wheel_speed, steering_angle);
+    float wheelspeeds[4] = { wheel_speed, wheel_speed, wheel_speed, wheel_speed }; // adding cause calculate_torque_cmd expects an array of 4 items  
+    calculate_torque_cmd(torques, current, wheelspeeds, steering_angle);
 
     if (xSemaphoreTake(can_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
       can_send(0x2, torques[0]);
@@ -349,23 +359,58 @@ void bms_monitoring_task(void *parameters) {
   }
 }
 
+void state_machine_task(void *parameters) {
+    // set all relay pins as outputs
+    pinMode(AIR_MINUS_PIN, arduino::OUTPUT);
+    pinMode(AIR_PLUS_PIN, arduino::OUTPUT);
+    pinMode(PRECHARGE_PIN, arduino::OUTPUT);
+    pinMode(TS_ON_PIN, arduino::INPUT_PULLUP);
+    pinMode(RTD_PIN, arduino::INPUT_PULLUP);
+
+    while (1) {
+        if (car_state == CarState::LV) {
+            if (digitalRead(TS_ON_PIN) == LOW) { // active low = pressed
+                // precharge sequence
+                digitalWrite(AIR_MINUS_PIN, arduino::HIGH);
+                digitalWrite(PRECHARGE_PIN, arduino::HIGH);
+                vTaskDelay(pdMS_TO_TICKS(5000));   // wait 5 seconds
+                digitalWrite(AIR_PLUS_PIN, arduino::HIGH);
+                digitalWrite(PRECHARGE_PIN, arduino::LOW);
+                car_state = CarState::TS;
+            }
+        }
+
+        if (car_state == CarState::TS) {
+            if (digitalRead(RTD_PIN) == LOW) {     // active low = pressed
+                car_state = CarState::RTD;
+            }
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(10)); // check buttons every 10ms
+    }
+}
+
 void setup(void) {
   current_queue = xQueueCreate(1, sizeof(float));
   steering_angle_queue = xQueueCreate(1, sizeof(float));
   torques_queue = xQueueCreate(1, sizeof(float) * 4);
   can_mutex = xSemaphoreCreateMutex();
+  spi_mutex = xSemaphoreCreateMutex(); // set up the mutex for spi 
 
   can_init(CAN_RX_PIN, CAN_TX_PIN, 250000); // 250000 ??
   lcd_init(MOSI_PIN, MISO_PIN, SCK_PIN, LCD_CS_PIN);
   bms_init(MOSI_PIN, MISO_PIN, SCK_PIN, BMS_CS_PIN);
   
   pinMode(WHEELSPEED_PIN, arduino::INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(WHEELSPEED_PIN), sensor_wheel_speed_update, arduino::FALLING);
+  attachInterrupt(digitalPinToInterrupt(WHEELSPEED_PIN), sensor_wheel_speed_update, arduino::FALLING);  // inturupt to check for if the wheel turned
 
   xTaskCreate(sensor_current_update, "sensor_current_update", 1024, NULL, TaskPriority_SENSOR, NULL);
   xTaskCreate(sensor_steering_angle_update, "sensor_steering_angle_update", 1024, NULL, TaskPriority_SENSOR, NULL);
   xTaskCreate(bms_monitoring_task, "bms_monitoring_task", 1024, NULL, TaskPriority_BMS, NULL);
   xTaskCreate(lcd_update, "lcd_update", 1024, NULL, TaskPriority_LCD, NULL);
+  xTaskCreate(torque_update, "torque_update", 1024, NULL, TaskPriority_SENSOR, NULL); // wasn't started before 
+  // state machine stuff 
+  xTaskCreate(state_machine_task, "state_machine_task", 1024, NULL, TaskPriority_SENSOR, NULL);
 
   vTaskStartScheduler();
 }
