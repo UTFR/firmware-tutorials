@@ -363,8 +363,8 @@ void lcd_update(void* parameters) {
             lcd_printf("wheel speed: %.3f RPM\n", wheel_speed);          // rpm
             lcd_printf("steering angle: %.3f degrees", steering_angle);  // steering angle
             lcd_printf("bms minV: %.3f V\n", min_voltage);               // bms vals as computed in the bms task (min and max voltage and max temp)
-            lcd_printf("bms maxV: %.3f V\n", max_voltage);
-            lcd_printf("bms maxT: %.3f C\n", max_temperature);
+            lcd_printf("bms maxV: %.3f V\n", max_voltage);               // max voltage
+            lcd_printf("bms maxT: %.3f C\n", max_temperature);           // max temp
             lcd_printf("torque\n\tFL: %.3f \tFR: %.3f\n\tRL: %.3f RR %.3f", torques[0], torques[1], torques[2], torques[3]);
 
             xSemaphoreGive(spi_mutex);
