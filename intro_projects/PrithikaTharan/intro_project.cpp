@@ -1,6 +1,6 @@
 #include <arduino_freertos.h>
-#include <semphr.h>
 #include <queue.h>
+#include <semphr.h>
 #include <stdint.h>
 
 /*
@@ -114,20 +114,20 @@ you end up with lots of useless formatting changes. You should install
 clang-format as soon as possible and set it up :)
 */
 
-constexpr int TS_ON_PIN           = 12;
-constexpr int RTD_PIN             = 13;
-constexpr int CURRENT_SENSOR_PIN  = 19;
-constexpr int CAN_RX_PIN          = 2;
-constexpr int CAN_TX_PIN          = 3;
-constexpr int MOSI_PIN            = 5;
-constexpr int MISO_PIN            = 6;
-constexpr int SCK_PIN             = 7;
-constexpr int LCD_CS_PIN          = 8;
-constexpr int BMS_CS_PIN          = 9;
-constexpr int AIR_PLUS_PIN        = 22;
-constexpr int PRECHARGE_PIN       = 23;
-constexpr int AIR_MINUS_PIN       = 10;
-constexpr int WHEELSPEED_PIN      = 11; // 11 ??
+constexpr int TS_ON_PIN = 12;
+constexpr int RTD_PIN = 13;
+constexpr int CURRENT_SENSOR_PIN = 19;
+constexpr int CAN_RX_PIN = 2;
+constexpr int CAN_TX_PIN = 3;
+constexpr int MOSI_PIN = 5;
+constexpr int MISO_PIN = 6;
+constexpr int SCK_PIN = 7;
+constexpr int LCD_CS_PIN = 8;
+constexpr int BMS_CS_PIN = 9;
+constexpr int AIR_PLUS_PIN = 22;
+constexpr int PRECHARGE_PIN = 23;
+constexpr int AIR_MINUS_PIN = 10;
+constexpr int WHEELSPEED_PIN = 11;  // 11 ??
 
 constexpr int BATTERIES_COUNT = 138;
 
@@ -141,6 +141,7 @@ QueueHandle_t steering_angle_queue;
 volatile float bms_voltage_min = 0.0f;
 volatile float bms_voltage_max = 0.0f;
 volatile float bms_temperature_max = 0.0f;
+volatile bool bms_fault_active = false;
 SemaphoreHandle_t bms_mutex;
 
 QueueHandle_t torques_queue;
@@ -153,7 +154,10 @@ constexpr int TaskPriority_SENSOR = 1;
 constexpr int TaskPriority_BMS = 2;
 
 // handling states for transitions (state machine)
-enum class CarState { LV, TS, RTD };
+enum class CarState { LV,
+                      PRECHARGE,
+                      TS,
+                      RTD };
 volatile CarState car_state = CarState::LV;
 
 /*
@@ -169,16 +173,14 @@ extern void can_send(uint8_t id, uint64_t payload);
 /*
   Receive a CAN message with a given id into a uint64_t
 */
-extern void can_receive(uint64_t *payload, uint8_t id);
+extern void can_receive(uint64_t* payload, uint8_t id);
 
 /*
   Calculates four torques, in order, for the Front Left, Front Right, Rear Left,
   and Rear Right motors given current, wheelspeeds (in the same order), and a
   steering angle.
 */
-extern void calculate_torque_cmd(
-  float *torques, float current, float *wheelspeeds, float steering_angle
-);
+extern void calculate_torque_cmd(float* torques, float current, float* wheelspeeds, float steering_angle);
 
 /*
   Initialize the LCD peripheral
@@ -188,7 +190,7 @@ extern void lcd_init(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t lcs_cs);
 /*
   Print something to the LCD
 */
-extern void lcd_printf(const char *fmt, ...);
+extern void lcd_printf(const char* fmt, ...);
 
 /*
   Initialize the BMS
@@ -206,160 +208,227 @@ extern float bms_get_voltage(uint8_t n);
 extern float bms_get_temperature(uint8_t n);
 
 float sensor_current_read() {
-  static const float ADC_VREF_V = 3.3f;
-  static const float ADC_RESOLUTION = 1024.0f;
-  static const float ADC_CONVERSION = 0.01f;
+    static const float ADC_VREF_V = 3.3f;
+    static const float ADC_RESOLUTION = 1024.0f;
+    static const float ADC_CONVERSION = 0.01f;
 
-  int raw = analogRead(CURRENT_SENSOR_PIN);
+    int raw = analogRead(CURRENT_SENSOR_PIN);
 
-  float voltage_V = (raw * ADC_VREF_V) / ADC_RESOLUTION;
-  float current_A = voltage_V / ADC_CONVERSION;
+    float voltage_V = (raw * ADC_VREF_V) / ADC_RESOLUTION;
+    float current_A = voltage_V / ADC_CONVERSION;
 
-  return current_A;
+    return current_A;
 }
 
-void sensor_current_update(void *parameters) {
-  TickType_t last_wake_time = xTaskGetTickCount();
-  const TickType_t frequency = pdMS_TO_TICKS(1);
+void sensor_current_update(void* parameters) {
+    TickType_t last_wake_time = xTaskGetTickCount();
+    const TickType_t frequency = pdMS_TO_TICKS(1);
 
-  while (1) {
-    float new_current = sensor_current_read();
-    xQueueOverwrite(current_queue, &new_current);
+    while (1) {
+        float new_current = sensor_current_read();
+        xQueueOverwrite(current_queue, &new_current);
 
-    vTaskDelayUntil(&last_wake_time, frequency);
-  }
+        vTaskDelayUntil(&last_wake_time, frequency);
+    }
 }
 
 float sensor_current_get(void) {
-  float current = 0.0f;
-  xQueueReceive(current_queue, &current, 0);
+    float current = 0.0f;
+    xQueueReceive(current_queue, &current, 0);
 
-  return current;
+    return current;
 }
 
-void sensor_wheel_speed_update(void) { // the ISR to sensor_steering_angle_update
-  unsigned long current = micros();
-  wheel_speed_interval = current - wheel_speed_last_pulse;
-  wheel_speed_last_pulse = current;
+void sensor_wheel_speed_update(void) {  // ISR called on each falling edge from the wheelspeed sensor
+    unsigned long current = micros();
+    wheel_speed_interval = current - wheel_speed_last_pulse;
+    wheel_speed_last_pulse = current;
 }
 
-float sensor_wheel_speed_get(void) { ///////////////////// FIX THIS 
-    if (wheel_speed_interval == 0) return 0.0f; // avoid divide by zero
-    return (60.0f * 1000000.0f) / (17.0f * (float)wheel_speed_interval);
+float sensor_wheel_speed_get(void) {
+    // check for a timeout in case car stops moving. Use about 0.5s as the check
+    unsigned long current_time = micros();
+
+    if ((current_time - wheel_speed_last_pulse) > 500000)
+        return 0.0f;
+
+    // RPM is calculated as: (60 * wheel_pulse_freq) / (total pulses per revolution)
+    if (wheel_speed_interval == 0) return 0.0f;                           // avoid divide by zero
+    return (60.0f * 1000000.0f) / (17.0f * (float)wheel_speed_interval);  // mult to get right units
 }
 
-void sensor_steering_angle_update(void *parameters) {
-  TickType_t last_wake_time = xTaskGetTickCount();
-  const TickType_t frequency = pdMS_TO_TICKS(10);
+void sensor_steering_angle_update(void* parameters) {
+    TickType_t last_wake_time = xTaskGetTickCount();
+    const TickType_t frequency = pdMS_TO_TICKS(10);
 
-  while (1) {
-    uint64_t steering_angle_raw;
-  
-    if (xSemaphoreTake(can_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
-      can_receive(&steering_angle_raw, 0x1);
-      xSemaphoreGive(can_mutex);
+    while (1) {
+        uint64_t steering_angle_raw;
 
-      float steering_angle = (float)steering_angle_raw;
-      xQueueOverwrite(steering_angle_queue, &steering_angle);
+        if (xSemaphoreTake(can_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
+            can_receive(&steering_angle_raw, 0x1);
+            xSemaphoreGive(can_mutex);
+
+            float steering_angle = (float)steering_angle_raw;
+            xQueueOverwrite(steering_angle_queue, &steering_angle);
+        }
+
+        vTaskDelayUntil(&last_wake_time, frequency);
     }
-
-    vTaskDelayUntil(&last_wake_time, frequency);
-  }
 }
 
 float sensor_steering_angle_get(void) {
-  float steering_angle = 0.0f;
-  xQueueReceive(steering_angle_queue, &steering_angle, 0);
+    float steering_angle = 0.0f;
+    xQueueReceive(steering_angle_queue, &steering_angle, 0);
 
-  return steering_angle;
+    return steering_angle;
 }
 
-void torque_update(void *parameters) {
-  TickType_t last_wake_time = xTaskGetTickCount();
-  const TickType_t frequency = pdMS_TO_TICKS(1);
+void torque_update(void* parameters) {
+    TickType_t last_wake_time = xTaskGetTickCount();
+    const TickType_t frequency = pdMS_TO_TICKS(1);
 
-  while (1) {
-    if (car_state != CarState::RTD) {       // don't drive unless right state. Just extra safe gaurding 
-      vTaskDelayUntil(&last_wake_time, frequency);
-      continue;
+    while (1) {
+        if (car_state != CarState::RTD) {  // don't drive unless right state. Just extra safe gaurding
+            vTaskDelayUntil(&last_wake_time, frequency);
+            continue;
+        }
+        float current = sensor_current_get();
+        float wheel_speed = sensor_wheel_speed_get();
+        float steering_angle = sensor_steering_angle_get();
+
+        float torques[4];
+        float wheelspeeds[4] = {wheel_speed, wheel_speed, wheel_speed, wheel_speed};  // adding cause calculate_torque_cmd expects an array of 4 items
+        calculate_torque_cmd(torques, current, wheelspeeds, steering_angle);
+
+        if (xSemaphoreTake(can_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
+            can_send(0x2, torques[0]);
+            can_send(0x3, torques[1]);
+            can_send(0x4, torques[2]);
+            can_send(0x5, torques[3]);
+            xSemaphoreGive(can_mutex);
+        }
+
+        xQueueOverwrite(torques_queue, torques);
+
+        vTaskDelayUntil(&last_wake_time, frequency);
     }
-    float current = sensor_current_get();
-    float wheel_speed = sensor_wheel_speed_get();
-    float steering_angle = sensor_steering_angle_get();
-
-    float torques[4];
-    float wheelspeeds[4] = { wheel_speed, wheel_speed, wheel_speed, wheel_speed }; // adding cause calculate_torque_cmd expects an array of 4 items  
-    calculate_torque_cmd(torques, current, wheelspeeds, steering_angle);
-
-    if (xSemaphoreTake(can_mutex, pdMS_TO_TICKS(1)) == pdTRUE) {
-      can_send(0x2, torques[0]);
-      can_send(0x3, torques[1]);
-      can_send(0x4, torques[2]);
-      can_send(0x5, torques[3]);
-      xSemaphoreGive(can_mutex);
-    }
-
-    xQueueOverwrite(torques_queue, torques);
-
-    vTaskDelayUntil(&last_wake_time, frequency);
-  }
 }
 
-void lcd_update(void *parameters) {
-  TickType_t last_wake_time = xTaskGetTickCount();
-  const TickType_t frequency = pdMS_TO_TICKS(100);
-
-  while (1) {
-    if (xSemaphoreTake(spi_mutex, pdMS_TO_TICKS(100))) {
-      float current = sensor_current_get();
-      float wheel_speed = sensor_wheel_speed_get();
-      float steering_angle = sensor_steering_angle_get();
-
-      float torques[4];
-      xQueueReceive(torques_queue, torques, 0);
-
-      lcd_printf("current: %.3f A\n", current);
-      lcd_printf("wheel speed: %.3f RPM\n", wheel_speed);
-      lcd_printf("steering angle: %.3f degrees", steering_angle);
-      lcd_printf("torque\n\tFL: %.3f \tFR: %.3f\n\tRL: %.3f RR %.3f", torques[0], torques[1], torques[2], torques[3]);
-
-      xSemaphoreGive(spi_mutex);
+// helper to print car state on the lcd
+const char* car_state_to_string(CarState state) {
+    switch (state) {
+        case CarState::LV:
+            return "LV";
+        case CarState::PRECHARGE:
+            return "PRECHARGE";
+        case CarState::TS:
+            return "TS";
+        case CarState::RTD:
+            return "RTD";
+        default:
+            return "UNKNOWN";
     }
+}
 
-    vTaskDelayUntil(&last_wake_time, frequency);
-  }
+void lcd_update(void* parameters) {
+    TickType_t last_wake_time = xTaskGetTickCount();
+    const TickType_t frequency = pdMS_TO_TICKS(100);
+
+    while (1) {
+        if (xSemaphoreTake(spi_mutex, pdMS_TO_TICKS(100))) {
+            float min_voltage = 0.0f;
+            float max_voltage = 0.0f;
+            float max_temperature = 0.0f;
+            bool fault_active = false;
+
+            // read bms values with mutex to prevent race conditions
+            if (xSemaphoreTake(bms_mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+                min_voltage = bms_voltage_min;
+                max_voltage = bms_voltage_max;
+                max_temperature = bms_temperature_max;
+                fault_active = bms_fault_active;
+                xSemaphoreGive(bms_mutex);
+            }
+
+            float current = sensor_current_get();
+            float wheel_speed = sensor_wheel_speed_get();
+            float steering_angle = sensor_steering_angle_get();
+
+            float torques[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+            xQueueReceive(torques_queue, torques, 0);
+
+            lcd_printf("state: %s\n", car_state_to_string(car_state));   // car state
+            lcd_printf("fault: %s\n", fault_active ? "YES" : "NO");      // bms fault
+            lcd_printf("current: %.3f A\n", current);                    // current
+            lcd_printf("wheel speed: %.3f RPM\n", wheel_speed);          // rpm
+            lcd_printf("steering angle: %.3f degrees", steering_angle);  // steering angle
+            lcd_printf("bms minV: %.3f V\n", min_voltage);               // bms vals as computed in the bms task (min and max voltage and max temp)
+            lcd_printf("bms maxV: %.3f V\n", max_voltage);
+            lcd_printf("bms maxT: %.3f C\n", max_temperature);
+            lcd_printf("torque\n\tFL: %.3f \tFR: %.3f\n\tRL: %.3f RR %.3f", torques[0], torques[1], torques[2], torques[3]);
+
+            xSemaphoreGive(spi_mutex);
+        }
+
+        vTaskDelayUntil(&last_wake_time, frequency);
+    }
 }
 
 void deenergize(void) {
-  digitalWrite(AIR_PLUS_PIN, arduino::LOW);
-  digitalWrite(AIR_MINUS_PIN, arduino::LOW);
-  digitalWrite(PRECHARGE_PIN, arduino::LOW);
+    digitalWrite(AIR_PLUS_PIN, arduino::LOW);
+    digitalWrite(AIR_MINUS_PIN, arduino::LOW);
+    digitalWrite(PRECHARGE_PIN, arduino::LOW);
+    car_state = CarState::LV;  // go back to LV state
 }
 
-void bms_monitoring_task(void *parameters) {
-  TickType_t last_wake_time = xTaskGetTickCount();
-  const TickType_t frequency = pdMS_TO_TICKS(50);
+void bms_monitoring_task(void* parameters) {
+    TickType_t last_wake_time = xTaskGetTickCount();
+    const TickType_t frequency = pdMS_TO_TICKS(50);
 
-  while (1) {
-    if (xSemaphoreTake(spi_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-      for (int i = 0; i < BATTERIES_COUNT; i++) {
-        float voltage = bms_get_voltage(i);
-        float temperature = bms_get_temperature(i);
+    while (1) {
+        if (xSemaphoreTake(spi_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+            bool fault_active = false;  // to prevent giving spi mutex twice
+            float lowest_voltage = 10000.0f;
+            float highest_voltage = 0.0f;
+            float highest_temp = -10000.0f;
 
-        if (voltage < 2.8f || voltage > 4.3f || temperature > 60.0f) {
-          xSemaphoreGive(spi_mutex);
-          deenergize();
+            for (int i = 0; i < BATTERIES_COUNT; i++) {
+                float voltage = bms_get_voltage(i);
+                float temperature = bms_get_temperature(i);
+
+                // get the max/min values to print on lcd
+                if (voltage < lowest_voltage)
+                    lowest_voltage = voltage;
+                if (voltage > highest_voltage)
+                    highest_voltage = voltage;
+                if (temperature > highest_temp)
+                    highest_temp = temperature;
+
+                if (voltage < 2.8f || voltage > 4.3f || temperature > 60.0f) {
+                    fault_active = true;
+                    break;
+                }
+            }
+            xSemaphoreGive(spi_mutex);  // give the mutex first
+
+            if (fault_active)
+                deenergize();
+
+            // modfiy the global variables using mutex cause LCD reads from them, this task writes to them, avoid race conditions
+            if (xSemaphoreTake(bms_mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+                bms_voltage_min = lowest_voltage;
+                bms_voltage_max = highest_voltage;
+                bms_temperature_max = highest_temp;
+                bms_fault_active = fault_active;
+                xSemaphoreGive(bms_mutex);
+            }
         }
-      }
 
-      xSemaphoreGive(spi_mutex);
+        vTaskDelayUntil(&last_wake_time, frequency);
     }
-
-    vTaskDelayUntil(&last_wake_time, frequency);
-  }
 }
 
-void state_machine_task(void *parameters) {
+void state_machine_task(void* parameters) {
     // set all relay pins as outputs
     pinMode(AIR_MINUS_PIN, arduino::OUTPUT);
     pinMode(AIR_PLUS_PIN, arduino::OUTPUT);
@@ -369,50 +438,57 @@ void state_machine_task(void *parameters) {
 
     while (1) {
         if (car_state == CarState::LV) {
-            if (digitalRead(TS_ON_PIN) == LOW) { // active low = pressed
+            if (digitalRead(TS_ON_PIN) == LOW) {  // active low = pressed
+                car_state = CarState::PRECHARGE;  // PRECHARGE state just to track if smth inturrupts this sequence
                 // precharge sequence
-                digitalWrite(AIR_MINUS_PIN, arduino::HIGH);
-                digitalWrite(PRECHARGE_PIN, arduino::HIGH);
-                vTaskDelay(pdMS_TO_TICKS(5000));   // wait 5 seconds
-                digitalWrite(AIR_PLUS_PIN, arduino::HIGH);
-                digitalWrite(PRECHARGE_PIN, arduino::LOW);
-                car_state = CarState::TS;
+                digitalWrite(AIR_MINUS_PIN, arduino::HIGH);  // close AIR-
+                digitalWrite(PRECHARGE_PIN, arduino::HIGH);  // close precharge relay
+                vTaskDelay(pdMS_TO_TICKS(5000));             // wait 5 seconds
+                if (car_state == CarState::PRECHARGE) {
+                    digitalWrite(AIR_PLUS_PIN, arduino::HIGH);  // close AIR+
+                    digitalWrite(PRECHARGE_PIN, arduino::LOW);  // open precharge relay
+                    car_state = CarState::TS;                   // set state
+                } else {
+                    // sequence aborted due to deenergize(), undo changes preivously made
+                    digitalWrite(AIR_MINUS_PIN, arduino::LOW);
+                    digitalWrite(PRECHARGE_PIN, arduino::LOW);
+                }
             }
-        }
-
-        if (car_state == CarState::TS) {
-            if (digitalRead(RTD_PIN) == LOW) {     // active low = pressed
+        } else if (car_state == CarState::TS) {
+            if (digitalRead(RTD_PIN) == LOW) {  // active low = pressed
                 car_state = CarState::RTD;
             }
         }
 
-        vTaskDelay(pdMS_TO_TICKS(10)); // check buttons every 10ms
+        vTaskDelay(pdMS_TO_TICKS(10));  // check buttons every 10ms
     }
 }
 
 void setup(void) {
-  current_queue = xQueueCreate(1, sizeof(float));
-  steering_angle_queue = xQueueCreate(1, sizeof(float));
-  torques_queue = xQueueCreate(1, sizeof(float) * 4);
-  can_mutex = xSemaphoreCreateMutex();
-  spi_mutex = xSemaphoreCreateMutex(); // set up the mutex for spi 
+    current_queue = xQueueCreate(1, sizeof(float));
+    steering_angle_queue = xQueueCreate(1, sizeof(float));
+    torques_queue = xQueueCreate(1, sizeof(float) * 4);
 
-  can_init(CAN_RX_PIN, CAN_TX_PIN, 250000); // 250000 ??
-  lcd_init(MOSI_PIN, MISO_PIN, SCK_PIN, LCD_CS_PIN);
-  bms_init(MOSI_PIN, MISO_PIN, SCK_PIN, BMS_CS_PIN);
-  
-  pinMode(WHEELSPEED_PIN, arduino::INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(WHEELSPEED_PIN), sensor_wheel_speed_update, arduino::FALLING);  // inturupt to check for if the wheel turned
+    can_mutex = xSemaphoreCreateMutex();
+    spi_mutex = xSemaphoreCreateMutex();  // create mutex for spi
+    bms_mutex = xSemaphoreCreateMutex();  // create mutex for bms
 
-  xTaskCreate(sensor_current_update, "sensor_current_update", 1024, NULL, TaskPriority_SENSOR, NULL);
-  xTaskCreate(sensor_steering_angle_update, "sensor_steering_angle_update", 1024, NULL, TaskPriority_SENSOR, NULL);
-  xTaskCreate(bms_monitoring_task, "bms_monitoring_task", 1024, NULL, TaskPriority_BMS, NULL);
-  xTaskCreate(lcd_update, "lcd_update", 1024, NULL, TaskPriority_LCD, NULL);
-  xTaskCreate(torque_update, "torque_update", 1024, NULL, TaskPriority_SENSOR, NULL); // wasn't started before 
-  // state machine stuff 
-  xTaskCreate(state_machine_task, "state_machine_task", 1024, NULL, TaskPriority_SENSOR, NULL);
+    can_init(CAN_RX_PIN, CAN_TX_PIN, 250000);  // 250000 ??
+    lcd_init(MOSI_PIN, MISO_PIN, SCK_PIN, LCD_CS_PIN);
+    bms_init(MOSI_PIN, MISO_PIN, SCK_PIN, BMS_CS_PIN);
 
-  vTaskStartScheduler();
+    pinMode(WHEELSPEED_PIN, arduino::INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(WHEELSPEED_PIN), sensor_wheel_speed_update, arduino::FALLING);  // inturupt to check for if the wheel turned
+
+    xTaskCreate(sensor_current_update, "sensor_current_update", 1024, NULL, TaskPriority_SENSOR, NULL);
+    xTaskCreate(sensor_steering_angle_update, "sensor_steering_angle_update", 1024, NULL, TaskPriority_SENSOR, NULL);
+    xTaskCreate(bms_monitoring_task, "bms_monitoring_task", 1024, NULL, TaskPriority_BMS, NULL);
+    xTaskCreate(lcd_update, "lcd_update", 1024, NULL, TaskPriority_LCD, NULL);
+    xTaskCreate(torque_update, "torque_update", 1024, NULL, TaskPriority_SENSOR, NULL);  // wasn't started before
+    // state machine stuff
+    xTaskCreate(state_machine_task, "state_machine_task", 1024, NULL, TaskPriority_SENSOR, NULL);
+
+    vTaskStartScheduler();
 }
 
 void loop(void) {}
