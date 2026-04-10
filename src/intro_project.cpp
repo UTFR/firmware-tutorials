@@ -112,6 +112,40 @@ you end up with lots of useless formatting changes. You should install
 clang-format as soon as possible and set it up :)
 */
 
+
+/*
+2026 Apr 9
+Plan: Three tasks:
+  while (flag) 
+    1, feed appropriate torque (1ms)
+      I don't think we're actually sending anything to the motors, we only need to calculate the torque
+      The needed torque is determined by calculate_torque_cmd(), it needs:
+        - current (ADC GPIO_pin_19, 1A = 10mV)
+        - wheel speed (GPIO_pin_21 unspecified, is this a GPIO?)
+        - angle (CAN)
+    2, print to LCD (100ms)
+      - SPI (Select = 8)
+    3, monitor BMS (main loop maybe?) 
+      - SPI (Select = 9)
+
+  ! BMS and LCD share the same SPI line(?)
+
+Main loop:
+  flag = 0
+  - If TS On low (ie turned on) 
+    1, close AIR- 
+    2, close precharge 
+    3, delay 5s 
+    4, close AIR+ 
+    5, open precharge
+  - if RTD low
+    1, car ready to drive: start performing tasks
+      So maybe let's have a flag that checks if we're in RTD
+      So if we're in TS, we don't have to perform the tasks.
+    2, flag = 1
+*/
+
+
 /*
   Initialize the CAN peripheral with given RX and TX pins at a given baudrate.
 */
