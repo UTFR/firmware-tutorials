@@ -163,4 +163,6 @@ extern float bms_get_temperature(uint8_t n);
 
 void setup(void) {}
 
-void loop(void) {}
+void loop(void) {
+  print("Hello world!\n");
+}
