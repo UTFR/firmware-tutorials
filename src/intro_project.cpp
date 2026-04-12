@@ -1,6 +1,22 @@
 #include <arduino_freertos.h>
 #include <stdint.h>
 
+// pinouts
+#define TS_ON_PIN 12
+#define RTD_PIN 13
+#define CURRENT_SENSOR_PIN 19
+#define CAN_RX_PIN 2
+#define CAN_TX_PIN 3
+#define MOSI_PIN 5
+#define MISO_PIN 6
+#define SCK_PIN 7   
+#define LCD_CS_PIN 8
+#define BMS_CS_PIN 9
+#define AIR_POS_PIN 22
+#define PRECHARGE_PIN 23
+#define AIR_NEG_PIN 10
+
+
 /*
 The car has three possible functional states:
 1. Low Voltage (LV)
@@ -115,23 +131,21 @@ clang-format as soon as possible and set it up :)
 
 /*
 2026 Apr 9
-Plan: Three tasks:
-  while (flag) 
-    1, feed appropriate torque (1ms)
-      I don't think we're actually sending anything to the motors, we only need to calculate the torque
-      The needed torque is determined by calculate_torque_cmd(), it needs:
-        - current (ADC GPIO_pin_19, 1A = 10mV)
-        - wheel speed (GPIO_pin_21 unspecified, is this a GPIO?)
-        - angle (CAN)
-    2, print to LCD (100ms)
-      - SPI (Select = 8)
-    3, monitor BMS (main loop maybe?) 
-      - SPI (Select = 9)
+Plan: Three tasks: 
+  1, feed appropriate torque (1ms)
+    I don't think we're actually sending anything to the motors, we only need to calculate the torque
+    The needed torque is determined by calculate_torque_cmd(), it needs:
+      - current (ADC GPIO_pin_19, 1A = 10mV)
+      - wheel speed (GPIO_pin_21 unspecified, is this a GPIO?)
+      - angle (CAN)
+  2, print to LCD (100ms)
+    - SPI (Select = 8)
+  3, monitor BMS (main loop maybe?) 
+    - SPI (Select = 9)
 
   ! BMS and LCD share the same SPI line(?)
 
 Main loop:
-  flag = 0
   - If TS On low (ie turned on) 
     1, close AIR- 
     2, close precharge 
@@ -139,10 +153,7 @@ Main loop:
     4, close AIR+ 
     5, open precharge
   - if RTD low
-    1, car ready to drive: start performing tasks
-      So maybe let's have a flag that checks if we're in RTD
-      So if we're in TS, we don't have to perform the tasks.
-    2, flag = 1
+    1, start tasks ie. vTaskStartScheduler();
 */
 
 
@@ -195,8 +206,48 @@ extern float bms_get_voltage(uint8_t n);
 */
 extern float bms_get_temperature(uint8_t n);
 
-void setup(void) {}
+//////// Custom Functions //////////
+/*
+Close air- and precharge, delay 5s, then close air+ and open precharge
+*/
+void energize (bool state) {
+  digitalWrite(AIR_NEG_PIN, (state) ? HIGH : LOW);
+  digitalWrite(PRECHARGE_PIN, (state) ? HIGH : LOW); 
+  delay(5000);
+  digitalWrite(AIR_POS_PIN, (state) ? HIGH : LOW); 
+  digitalWrite(PRECHARGE_PIN, (state) ? LOW : HIGH); 
+}
+
+
+
+
+void setup(void) {
+  int state = 0; // 0 = LV, 1 = TS, 2 = RTD
+
+  // The peripherals cannot start running until we connect the battery
+  while (1) {
+    if (digitalRead(TS_ON_PIN) == LOW) {
+      // in Tractive System state
+      state = 1;
+      energize(true); 
+      break;
+    }
+  }
+
+  while (1) {
+    if (digitalRead(RTD_PIN) == LOW) {
+      // in Ready to Drive state
+      state = 2;
+      break;
+    }
+  }
+  
+  can_init(CAN_RX_PIN, CAN_TX_PIN, 300);
+  lcd_init(MOSI_PIN, MISO_PIN, SCK_PIN, LCD_CS_PIN);
+  bms_init(MOSI_PIN, MISO_PIN, SCK_PIN, BMS_CS_PIN);
+
+
+}
 
 void loop(void) {
-  print("Hello world!\n");
 }
