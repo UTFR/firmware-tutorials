@@ -133,9 +133,8 @@ clang-format as soon as possible and set it up :)
 2026 Apr 9
 Plan: Three tasks: 
   1, feed appropriate torque (1ms)
-    I don't think we're actually sending anything to the motors, we only need to calculate the torque
     The needed torque is determined by calculate_torque_cmd(), it needs:
-      - current (ADC GPIO_pin_19, 1A = 10mV)
+      - current (ADC GPIO_pin_19, 1A = 10mV, ie 1V = )
       - wheel speed (GPIO_pin_21 unspecified, is this a GPIO?)
       - angle (CAN)
   2, print to LCD (100ms)
@@ -206,47 +205,90 @@ extern float bms_get_voltage(uint8_t n);
 */
 extern float bms_get_temperature(uint8_t n);
 
+
 //////// Custom Functions //////////
 /*
 Close air- and precharge, delay 5s, then close air+ and open precharge
 */
-void energize (bool state) {
-  digitalWrite(AIR_NEG_PIN, (state) ? HIGH : LOW);
-  digitalWrite(PRECHARGE_PIN, (state) ? HIGH : LOW); 
+void energize () {
+  digitalWrite(AIR_NEG_PIN, HIGH);
+  digitalWrite(PRECHARGE_PIN, HIGH); 
   delay(5000);
-  digitalWrite(AIR_POS_PIN, (state) ? HIGH : LOW); 
-  digitalWrite(PRECHARGE_PIN, (state) ? LOW : HIGH); 
+  digitalWrite(AIR_POS_PIN, HIGH); 
+  digitalWrite(PRECHARGE_PIN, LOW); 
+}
+
+void init() {
+  can_init(CAN_RX_PIN, CAN_TX_PIN, 300);
+  lcd_init(MOSI_PIN, MISO_PIN, SCK_PIN, LCD_CS_PIN);
+  bms_init(MOSI_PIN, MISO_PIN, SCK_PIN, BMS_CS_PIN);
 }
 
 
+void torque_update(void *parameters) {
+  /*
+  parameters: none
+  task: calculate torque every 1ms based on current, wheelspeeds, and steering angle
+  */
+
+  TickType_t xLastWakeTime;
+  const TickType_t xDelayTime = 1 / portTICK_PERIOD_MS;
+  xLastWakeTime = xTaskGetTickCount();
+
+  while (1) {
+    // current
+    const float Vref = 5.0; 
+    const float ADCResolution = 1024.0; 
+    const float AVConversion = 100.0;
+
+    int sensorReading = analogRead(CURRENT_SENSOR_PIN);
+    float current = ((sensorReading * Vref) / ADCResolution ) * AVConversion // Assuming 10 bit ADC and 5V Vref. 1V = 100A
+    
+    // wheelspeeds
+    // calculating wheelspeeds every 1ms will likely disrupt the functioning of other tasks, so we'll measure it every 50ms
+    float wheelSpeeds = pseudo_get_wheelspeeds(); // TODO
+
+    // NEED TO CHECK FOR CAN BUS CONFLICT! TODO
+    // steering angle
+    uint64_t CANReturn;
+    can_receive(&CANReturn, CAN_RX_PIN);  
+    float angle = static_cast<float>(CANReturn);
+
+    // calculate torque
+    float updatedTorques[4];
+    calculate_torque_cmd(updatedTorques, current, &wheelSpeeds, angle); // the array is technically a pointer to the first element.
+    
+    vTaskDelayUntil(&xLastWakeTime, xDelayTime);
+  }
+}
 
 
 void setup(void) {
-  int state = 0; // 0 = LV, 1 = TS, 2 = RTD
-
-  // The peripherals cannot start running until we connect the battery
   while (1) {
     if (digitalRead(TS_ON_PIN) == LOW) {
-      // in Tractive System state
-      state = 1;
-      energize(true); 
+      // Entered Tractive System state
+      energize(); 
       break;
     }
   }
 
   while (1) {
     if (digitalRead(RTD_PIN) == LOW) {
-      // in Ready to Drive state
-      state = 2;
+      // Entered Ready to Drive state
+      init();
       break;
     }
   }
-  
-  can_init(CAN_RX_PIN, CAN_TX_PIN, 300);
-  lcd_init(MOSI_PIN, MISO_PIN, SCK_PIN, LCD_CS_PIN);
-  bms_init(MOSI_PIN, MISO_PIN, SCK_PIN, BMS_CS_PIN);
 
+  const int TORQUE_PRIORITY = 1;
+  const int LCD_PRIORITY = 1; 
+  const int BMS_PRIORITY = 2;
 
+  xTaskCreate(torque_update, "Torque Update", 1024, NULL, TORQUE_PRIORITY, NULL);
+  xTaskCreate(lcd_update, "LCD Update", 1024, NULL, LCD_PRIORITY, NULL);
+  xTaskCreate(bms_monitor, "BMS Monitor", 1024, NULL, BMS_PRIORITY, NULL);
+
+  vTaskStartScheduler();
 }
 
 void loop(void) {
