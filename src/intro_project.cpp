@@ -134,8 +134,8 @@ clang-format as soon as possible and set it up :)
 Plan: Three tasks: 
   1, feed appropriate torque (1ms)
     The needed torque is determined by calculate_torque_cmd(), it needs:
-      - current (ADC GPIO_pin_19, 1A = 10mV, ie 1V = )
-      - wheel speed (GPIO_pin_21 unspecified, is this a GPIO?)
+      - current (ADC GPIO_pin_19, 1A = 10mV, ie 1V = 100V)
+      - wheel speed (GPIO_pin_21)
       - angle (CAN)
   2, print to LCD (100ms)
     - SPI (Select = 8)
@@ -210,7 +210,7 @@ extern float bms_get_temperature(uint8_t n);
 /*
 Close air- and precharge, delay 5s, then close air+ and open precharge
 */
-void energize () {
+void energize() {
   digitalWrite(AIR_NEG_PIN, HIGH);
   digitalWrite(PRECHARGE_PIN, HIGH); 
   delay(5000);
@@ -219,7 +219,7 @@ void energize () {
 }
 
 void init() {
-  can_init(CAN_RX_PIN, CAN_TX_PIN, 300);
+  can_init(CAN_RX_PIN, CAN_TX_PIN, 300); 
   lcd_init(MOSI_PIN, MISO_PIN, SCK_PIN, LCD_CS_PIN);
   bms_init(MOSI_PIN, MISO_PIN, SCK_PIN, BMS_CS_PIN);
 }
@@ -256,7 +256,7 @@ void torque_update(void *parameters) {
 
     // calculate torque
     float updatedTorques[4];
-    calculate_torque_cmd(updatedTorques, current, &wheelSpeeds, angle); // the array is technically a pointer to the first element.
+    calculate_torque_cmd(updatedTorques, current, &wheelSpeeds, angle); 
     
     vTaskDelayUntil(&xLastWakeTime, xDelayTime);
   }
