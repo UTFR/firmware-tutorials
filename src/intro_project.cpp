@@ -241,14 +241,14 @@ void torque_update(void *parameters) {
     const float ADCResolution = 1024.0; 
     const float AVConversion = 100.0;
 
-    int sensorReading = analogRead(CURRENT_SENSOR_PIN);
+    int sensorReading = analogRead(CURRENT_SENSOR_PIN); // analogRead returns int
     float current = ((sensorReading * Vref) / ADCResolution ) * AVConversion // Assuming 10 bit ADC and 5V Vref. 1V = 100A
     
     // wheelspeeds
     // calculating wheelspeeds every 1ms will likely disrupt the functioning of other tasks, so we'll measure it every 50ms
+    // store the wheelspeed somewhere, conflict prevention needed (queue?) 
     float wheelSpeeds = pseudo_get_wheelspeeds(); // TODO
 
-    // NEED TO CHECK FOR CAN BUS CONFLICT! TODO
     // steering angle
     uint64_t CANReturn;
     can_receive(&CANReturn, CAN_RX_PIN);  
@@ -257,8 +257,8 @@ void torque_update(void *parameters) {
     // calculate torque
     float updatedTorques[4];
     calculate_torque_cmd(updatedTorques, current, &wheelSpeeds, angle); 
-    
-    vTaskDelayUntil(&xLastWakeTime, xDelayTime);
+
+    vTaskDelayUntil(&xLastWakeTime, xDelayTime); // 1ms
   }
 }
 
