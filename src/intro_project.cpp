@@ -112,6 +112,20 @@ you end up with lots of useless formatting changes. You should install
 clang-format as soon as possible and set it up :)
 */
 
+typedef struct { // These 4 variables are shared by two threads - Dinu
+  float current;
+  float wheelspeeds;
+  float steering_angle;
+  float torque;
+} movement_vehicle_data;
+
+typedef int mutex_t mutex_create(void);
+
+extern bool mutex_take(mutex_t mutex);
+extern bool mutex_give(mutex_t mutex);
+
+for(int j = 0; j < movement_vehicle_data.wheelspeeds.length(); j++) {}
+
 /*
   Initialize the CAN peripheral with given RX and TX pins at a given baudrate.
 */
@@ -161,6 +175,118 @@ extern float bms_get_voltage(uint8_t n);
 */
 extern float bms_get_temperature(uint8_t n);
 
-void setup(void) {}
+#define CAN_BAUDRATE 500000
+#define MOTOR_TEETH 17
+#define SPEED_TIME 10
+#define MOTOR_CONTROL_TIME 1
+#define DISPLAY_DELAY 100
+#define SAFETY_DELAY 20
+
+static movement_vehicle_data vehicle_data;
+static mutex_t vehicle_mutex;
+
+void calculate_rpm(void) {
+  int rotation = 0;
+
+  for(;;) {
+    delay(SPEED_TIME);
+
+    if(wheel_pin == low) {
+      rotation++;
+    }
+
+    vehicle_data.wheelspeeds = rotation / (SPEED_TIME * 6000);
+  }
+}
+
+void motor_control_thread(void) {
+  for(;;) { // Infinite For Loop
+    delay(MOTOR_CONTROL_TIME);
+
+    while(!mutex_take(vehicle_mutex)) {
+    } // Return true or false, to know whether mutex lock was acquired or not
+
+    calculate_torque_cmd(
+      vehicle_data.torque, vehicle_data.current, vehicle_data.steering_angle,
+      vehicle_data.wheelspeeds
+    );
+
+    mutex_give(vehicle_mutex);
+
+    while(!mutex_take(vehicle_mutex)) {}
+    can_send(front_motorL_ID, torque[0]);
+    can_send(frontR_motor_ID, torque[1]);
+    can_send(rearL_motor_ID, torque[2]);
+    can_send(rearR_motor_ID, torue[3]);
+
+    mutex_give(vehicle_mutex);
+  }
+}
+
+void display_thread(void) {
+  for(;;) {
+    delay(DISPLAY_DELAY);
+
+    while(!mutex_take(vehicle_mutex)) {}
+
+    lcd_printf(
+      vehicle_data.current, vehicle_data.wheelspeeds[0],
+      vehicle_data.wheelspeeds[1], vehicle_data.wheelspeeds[2],
+      vehicle_data.wheelspeeds[3], vehicle_data.torque[0],
+      vehicle_data.torque[1], vehicle_data.torque[2], vehicle_data.torque[3]
+    );
+
+    mutex_give(vehicle_mutex);
+  }
+}
+
+void safety_thread(void) {
+  for(;;) {
+    delay(SAFETY_DELAY);
+
+    double v_min = 5.0;
+    double v_max = 0.0;
+    double t_max = 0.0;
+    double v = 0;
+    double t = 0;
+
+    for(int i = 0; i < num_cells; i++) {
+      v = bms_get_voltage(i);
+      t = bms_get_temperature(i);
+
+      if(v < v_min) {
+        v = v_min;
+      }
+      if(v > v_max) {
+        v = v_max;
+      }
+      if(t > t_max) {
+        t = t_max;
+      }
+    }
+
+    if(v < 2.8 || v > 4.3 || t > 60.0) {
+      mcu_shutdown(); // Shutdown the car
+    }
+  }
+}
+
+void setup(void) {
+  // Configure pins
+  pinMode(TS_ON, INPUT);
+  pinMode(RTD, INPUT);
+
+  pinMode(AIR_PLUS, OUTPUT);
+  pinMode(AIR_MINUS, OUTPUT);
+  pinMode(PRECHARGE, OUTPUT);
+
+  // Initialize peripherals
+  can_init(CAN_RX, CAN_TX, CAN_BAUDRATE);
+  lcd_init(MOSI, MISO, SCK, LCD_CS);
+  bms_init(MOSI, MISO, SCK, LCS_CS);
+
+  data_mutex = mutex_t();
+  spi_mutex = mutex_t();
+}
 
 void loop(void) {}
