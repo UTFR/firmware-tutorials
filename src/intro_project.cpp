@@ -1,6 +1,20 @@
 #include <arduino_freertos.h>
 #include <stdint.h>
 
+#define WS_FL_PIN ???
+#define WS_FR_PIN ???
+#define WS_RL_PIN ???
+#define WS_RR_PIN ???
+
+#define STEERING_CAN_ID ???
+
+#define MOTOR_FL_ID ???
+#define MOTOR_FR_ID ???
+#define MOTOR_RL_ID ???
+#define MOTOR_RR_ID ???
+
+#define NUM_CELLS ???
+
 /*
 The car has three possible functional states:
 1. Low Voltage (LV)
@@ -56,7 +70,7 @@ car. This also operates via SPI.
 
 Mock library functions have been provided where necessary (marked with extern).
 
-NOTE - EXTREMELY IMPORTANT: the CAN methods `can_send` and `can_receive` are NOT
+NOTE - EXTREMELY IMPORTANT: the CAN methods can_send and can_receive are NOT
 thread safe.
 
 Also think about the implications of having two peripherals on one SPI bus.
@@ -88,28 +102,6 @@ AIR+:           22
 Precharge:      23
 AIR-:           10
 
-----------------------------
-
-"Submission" instructions. I want you all to get familiar with git, so we will
-do this project with git. The repo is
-https://github.com/UTFR/firmware-tutorials.
-
-If you still haven't joined the github organization, let me know and i'll add
-you. Clone the repository, and make a branch called `<your name>/intro_project`.
-Copy this file into the directory `intro_projects/<your name>` and make all your
-changes there.
-
-Whenever you add a feature, `git add` the files, and `git commit -m "..."` with
-a useful/descriptive message. Whenver you want your changes to be public, do
-`git push origin <your name>/intro_project`.
-
-Also, I won't enforce it for this project, but for the actual firmware repo we
-have a code formatter (clang-format). It means that everyone's code will look
-exactly the same, in terms of how much whitespace there is and other aesthetics
-like that. It's not there for aesthetics, but moreso so that you when people
-make changes you can see exactly what they changed, whereas without a formatter,
-you end up with lots of useless formatting changes. You should install
-clang-format as soon as possible and set it up :)
 */
 
 /*
@@ -122,6 +114,7 @@ extern void can_init(uint8_t rx, uint8_t tx, uint32_t baudrate);
   The 8 byte payload is encoded as a uint64_t
 */
 extern void can_send(uint8_t id, uint64_t payload);
+
 /*
   Receive a CAN message with a given id into a uint64_t
 */
@@ -161,6 +154,142 @@ extern float bms_get_voltage(uint8_t n);
 */
 extern float bms_get_temperature(uint8_t n);
 
-void setup(void) {}
+volatile unsigned long timestamps[4];
+volatile float rpm[4];
 
-void loop(void) {}
+SemaphoreHandle_t spi_mutex;
+SemaphoreHandle_t can_mutex;
+
+enum CarState {LV, TS, RTD};
+CarState car_state = LV;
+
+float current = 0;
+float steering_angle = 0;
+float torques[4] = {0, 0, 0, 0};
+
+void wheelspeed_fl_isr() {
+  unsigned long now = micros();
+  unsigned long gap = now - timestamps[0];
+  rpm[0] = 60000000.0 / (gap * 17);
+  timestamps[0] = now;
+}
+
+void wheelspeed_fr_isr() {
+  unsigned long now = micros();
+  unsigned long gap = now - timestamps[1];
+  rpm[1] = 60000000.0 / (gap * 17);
+  timestamps[1] = now;
+}
+
+void wheelspeed_rl_isr() {
+  unsigned long now = micros();
+  unsigned long gap = now - timestamps[2];
+  rpm[2] = 60000000.0 / (gap * 17);
+  timestamps[2] = now;
+}
+
+void wheelspeed_rr_isr() {
+  unsigned long now = micros();
+  unsigned long gap = now - timestamps[3];
+  rpm[3] = 60000000.0 / (gap * 17);
+  timestamps[3] = now;
+}
+
+void torque_task(void *parameters) {
+  while (true) {
+    current = analogRead(19) / 10.0; // convert from raw to voltage, then /10     raw / 495 * 3.3 / 10
+    uint64_t steering_raw;
+    xSemaphoreTake(can_mutex, portMAX_DELAY);
+    can_receive(&steering_raw, STEERING_CAN_ID);
+    xSemaphoreGive(can_mutex);
+    steering_angle = (float)steering_raw;
+
+    float wheelspeeds[4] = {rpm[0], rpm[1], rpm[2], rpm[3]};
+
+    if (car_state == RTD) {
+      calculate_torque_cmd(torques, current, wheelspeeds, steering_angle);
+      xSemaphoreTake(can_mutex, portMAX_DELAY);
+      can_send(MOTOR_FL_ID, (uint64_t)torques[0]);
+      can_send(MOTOR_FR_ID, (uint64_t)torques[1]);
+      can_send(MOTOR_RL_ID, (uint64_t)torques[2]);
+      can_send(MOTOR_RR_ID, (uint64_t)torques[3]);
+      xSemaphoreGive(can_mutex);
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+}
+
+void lcd_task(void *parameters) {
+  while (true) {
+    xSemaphoreTake(spi_mutex, portMAX_DELAY);
+    lcd_printf("Current:%f RPM:%f %f %f %f Steering:%f Torques:%f %f %f %f",
+    current,
+    rpm[0], rpm[1], rpm[2], rpm[3],
+    steering_angle,
+    torques[0], torques[1], torques[2], torques[3]);
+    xSemaphoreGive(spi_mutex);
+    vTaskDelay(pdMS_TO_TICKS(100));
+  }
+}
+
+void bms_task(void *parameters) {
+  while (true) {
+    for (int i = 0; i < NUM_CELLS; i++) {
+      xSemaphoreTake(spi_mutex, portMAX_DELAY);
+      float voltage = bms_get_voltage(i);
+      float temperature = bms_get_temperature(i);
+      xSemaphoreGive(spi_mutex);
+      if (voltage < 2.8 || voltage > 4.3 || temperature > 60) {
+        digitalWrite(22, LOW);  // AIR+
+        digitalWrite(10, LOW);  // AIR-
+        digitalWrite(23, LOW);  // Precharge
+        car_state = LV;
+        break;
+      }
+    }
+  }
+}
+
+void setup(void) {
+  can_init(2, 3, ???);
+  lcd_init(5, 6, 7, 8);
+  bms_init(5, 6, 7, 9);
+
+  pinMode(12, INPUT);
+  pinMode(13, INPUT);
+  pinMode(19, INPUT);
+  pinMode(22, OUTPUT);
+  pinMode(10, OUTPUT);
+  pinMode(23, OUTPUT);
+
+  digitalWrite(22, LOW);
+  digitalWrite(10, LOW);
+  digitalWrite(23, LOW);
+
+  attachInterrupt(digitalPinToInterrupt(WS_FL_PIN), wheelspeed_fl_isr, FALLING);
+  attachInterrupt(digitalPinToInterrupt(WS_FR_PIN), wheelspeed_fr_isr, FALLING);
+  attachInterrupt(digitalPinToInterrupt(WS_RL_PIN), wheelspeed_rl_isr, FALLING);
+  attachInterrupt(digitalPinToInterrupt(WS_RR_PIN), wheelspeed_rr_isr, FALLING);
+
+  spi_mutex = xSemaphoreCreateMutex();
+  can_mutex = xSemaphoreCreateMutex();
+
+  xTaskCreate(torque_task, "torque", 1000, NULL, 1, NULL);
+  xTaskCreate(lcd_task, "lcd", 1000, NULL, 1, NULL);
+  xTaskCreate(bms_task, "bms", 1000, NULL, 1, NULL);
+}
+
+void loop(void) {
+  if (car_state == LV && digitalRead(12) == LOW) {
+    digitalWrite(10, HIGH);           // close AIR-
+    digitalWrite(23, HIGH);           // close Precharge
+    vTaskDelay(pdMS_TO_TICKS(5000)); // wait 5 seconds
+    digitalWrite(22, HIGH);           // close AIR+
+    digitalWrite(23, LOW);            // open Precharge
+    car_state = TS;
+  }
+  if (car_state == TS && digitalRead(13) == LOW) {
+    car_state = RTD;
+  }
+}
