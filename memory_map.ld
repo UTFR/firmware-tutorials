@@ -1,0 +1,32 @@
+#include "UTFR_BOOT_UTILS/memory_map_config.h"
+
+ENTRY(reset_handler)
+
+MEMORY {
+    BOOTLOADER (rx):  ORIGIN = BOOTLOADER_SECTION_START, LENGTH = BOOTLOADER_SECTION_SIZE
+    PARAMS (rx):      ORIGIN = PARAMS_SECTION_START,     LENGTH = PARAMS_SECTION_SIZE
+    APP (rx):         ORIGIN = APP_SECTION_START,        LENGTH = FLASH_SIZE - BOOTLOADER_SECTION_SIZE - PARAMS_SECTION_SIZE
+
+    SHARED_RAM (xrw): ORIGIN = SHARED_RAM_SECTION_START, LENGTH = SHARED_RAM_SECTION_SIZE
+    RAM (xrw):        ORIGIN = RAM_SECTION_START,        LENGTH = RAM_SIZE - SHARED_RAM_SECTION_SIZE
+}
+
+ASSERT(BOOTLOADER_SECTION_SIZE + PARAMS_SECTION_SIZE + LENGTH(APP) <= FLASH_SIZE, "exceeded 512K of flash")
+ASSERT(SHARED_RAM_SECTION_SIZE + LENGTH(RAM) <= RAM_SIZE, "exceeded 128K of ram")
+
+SECTIONS {
+    SHARED_RAM_SECTION_NAME (NOLOAD) : {
+        KEEP(*(SHARED_RAM_SECTION_NAME))
+    } >SHARED_RAM
+
+    PARAMS_SECTION_NAME : {
+        KEEP(*(PARAMS_SECTION_NAME))
+    } >PARAMS
+}
+
+/* highest address of user mode stack */
+_estack = ORIGIN(RAM) + LENGTH(RAM);
+
+/* generate linker error if heap and stack don't fit into RAM */
+_min_heap_size = 0x200;
+_min_stack_size = 0x400;

@@ -1,0 +1,2427 @@
+nodes:
+  - WDAQ
+  - MTI600
+  - Datalogger
+  - FSGDatalogger
+  - GroundSpeed
+  - RES
+  - Jetson
+  - ACM
+  - RC
+  - Flasher
+
+messages:
+  - Pump1Command:
+      id: 0x361
+      dlc: 8
+      sender: RC
+      signals:
+        - Speed:
+            start_bit: 0
+            length: 16
+            scale: 0.001
+            offset: 0
+            min: 0
+            max: 65
+            signed: false
+            unit: "rpm"
+  - Pump1Status1:
+      id: 0x371
+      dlc: 8
+      sender: Pump1
+      signals:
+        - Speed:
+            start_bit: 0
+            length: 16
+            scale: 0.001
+            offset: 0
+            min: 0
+            max: 65
+            signed: false
+            endianness: "little"
+            unit: "rpm"
+        - PhaseCurrent:
+            start_bit: 16
+            length: 16
+            scale: 10
+            offset: 0
+            min: -300
+            max: 300
+            signed: false
+            endianness: "little"
+            unit: "A"
+        - Temperature:
+            start_bit: 32
+            length: 16
+            scale: 10
+            offset: 0
+            min: 0
+            max: 200
+            signed: false
+            endianness: "little"
+            unit: "C"
+        - Voltage:
+            start_bit: 48
+            length: 16
+            scale: 1
+            offset: 0
+            min: 0
+            max: 65000
+            signed: false
+            endianness: "little"
+            unit: "mV"
+  - Pump1Diagnostic:
+      id: 0x401
+      dlc: 8
+      sender: Pump1
+      signals:
+        - Header:
+            start_bit: 0
+            length: 8
+            scale: 1
+            offset: 0
+            min: 0
+            max: 256
+            signed: false
+            endianness: "little"
+            unit: ""
+        - Data:
+            start_bit: 8
+            length: 32
+            scale: 1
+            offset: 0
+            min: 0
+            max: 16000
+            signed: false
+            endianness: "little"
+            unit: ""
+  - Pump2Command:
+      id: 0x360
+      dlc: 8
+      sender: RC
+      signals:
+        - Speed:
+            start_bit: 0
+            length: 16
+            scale: 0.001
+            offset: 0
+            min: 0
+            max: 65
+            signed: false
+            unit: "rpm"
+  - Pump2Status1:
+      id: 0x370
+      dlc: 8
+      sender: Pump2
+      signals:
+        - Speed:
+            start_bit: 0
+            length: 16
+            scale: 0.001
+            offset: 0
+            min: 0
+            max: 65
+            signed: false
+            endianness: "little"
+            unit: "rpm"
+        - PhaseCurrent:
+            start_bit: 16
+            length: 16
+            scale: 10
+            offset: 0
+            min: -300
+            max: 300
+            signed: false
+            endianness: "little"
+            unit: "A"
+        - Temperature:
+            start_bit: 32
+            length: 16
+            scale: 10
+            offset: 0
+            min: 0
+            max: 200
+            signed: false
+            endianness: "little"
+            unit: "C"
+        - Voltage:
+            start_bit: 48
+            length: 16
+            scale: 1
+            offset: 0
+            min: 0
+            max: 65000
+            signed: false
+            endianness: "little"
+            unit: "mV"
+  - Pump2Diagnostic:
+      id: 0x400
+      dlc: 8
+      sender: Pump2
+      signals:
+        - Header:
+            start_bit: 0
+            length: 8
+            scale: 1
+            offset: 0
+            min: 0
+            max: 256
+            signed: false
+            endianness: "little"
+            unit: ""
+        - Data:
+            start_bit: 8
+            length: 32
+            scale: 1
+            offset: 0
+            min: 0
+            max: 16000
+            signed: false
+            endianness: "little"
+            unit: ""
+  - Relay_States:
+      id: 0x323
+      dlc: 1
+      sender: ACM
+      signals:
+        - AIRP_Expected_State:
+            start_bit: 0
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+                - RC
+                - WDAQ
+        - AIRP_AUX_State:
+            start_bit: 1
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+                - RC
+                - WDAQ
+        - AIRN_Expected_State:
+            start_bit: 2
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+                - RC
+                - WDAQ
+        - AIRN_AUX_State:
+            start_bit: 3
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+                - RC
+                - WDAQ
+        - Precharge_Expected_State:
+            start_bit: 4
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+                - RC
+                - WDAQ
+        - Precharge_AUX_State:
+            start_bit: 5
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+                - RC
+                - WDAQ
+  - Datalogger_Start:
+      id: 0x450
+      dlc: 0
+      sender: RC
+      signals: []
+  - GPS_Free_Acceleration:
+      id: 0x402
+      dlc: 6
+      sender: MTI600
+      signals:
+        - FreeAccX:
+            start_bit: 7
+            length: 16
+            signed: true
+            scale: 0.00390625
+            min: -100
+            max: 100
+            endianness: "big"
+            unit: "m/s^2"
+            receivers:
+                - WDAQ
+                - Jetson
+        - FreeAccY:
+            start_bit: 23
+            length: 16
+            signed: true
+            scale: 0.00390625
+            min: -100
+            max: 100
+            endianness: "big"
+            unit: "m/s^2"
+            receivers:
+                - WDAQ
+                - Jetson
+        - FreeAccZ:
+            start_bit: 39
+            length: 16
+            signed: true
+            scale: 0.00390625
+            min: -100
+            max: 100
+            endianness: "big"
+            unit: "m/s^2"
+            receivers:
+                - WDAQ
+                - Jetson
+  - GPS_StatusWord:
+      id: 0x415
+      dlc: 4
+      sender: MTI600
+      signals:
+        - StatusWord:
+            start_bit: 7
+            length: 32
+            signed: false
+            scale: 1
+            min: 0
+            max: 4294967295
+            endianness: "big"
+            unit: ""
+            receivers:
+                - WDAQ
+                - Jetson
+  - GPS_Error:
+      id: 0x416
+      dlc: 1
+      sender: MTI600
+      signals:
+        - ErrorCode:
+            start_bit: 7
+            length: 8
+            signed: false
+            scale: 1
+            min: 0
+            max: 255
+            endianness: "big"
+            unit: ""
+            receivers:
+                - WDAQ
+                - Jetson
+  - GPS_Warning:
+      id: 0x403
+      dlc: 1
+      sender: MTI600
+      signals:
+        - WarningCode:
+            start_bit: 7
+            length: 8
+            signed: false
+            scale: 1
+            min: 0
+            max: 255
+            endianness: "big"
+            unit: ""
+            receivers:
+                - WDAQ
+                - Jetson
+  - GPS_Sample_Time:
+      id: 0x404
+      dlc: 4
+      sender: MTI600
+      signals:
+        - SampleTime:
+            start_bit: 7
+            length: 32
+            signed: false
+            scale: 1
+            min: 0
+            max: 4294967295
+            endianness: "big"
+            unit: "100us"
+            receivers:
+                - WDAQ
+                - Jetson
+  - GPS_Group_Counter:
+      id: 0x405
+      dlc: 2
+      sender: MTI600
+      signals:
+        - Counter:
+            start_bit: 7
+            length: 16
+            signed: false
+            scale: 1
+            min: 0
+            max: 65535
+            endianness: "big"
+            unit: ""
+            receivers:
+                - WDAQ
+                - Jetson
+  - GPS_UTC:
+      id: 0x406
+      dlc: 8
+      sender: MTI600
+      signals:
+        - Year:
+            start_bit: 7
+            length: 8
+            signed: false
+            scale: 1
+            min: 0
+            max: 255
+            endianness: "big"
+            unit: ""
+            receivers:
+                - WDAQ
+                - Jetson
+        - Month:
+            start_bit: 15
+            length: 8
+            signed: false
+            scale: 1
+            min: 1
+            max: 12
+            endianness: "big"
+            unit: ""
+            receivers:
+                - WDAQ
+                - Jetson
+        - Day:
+            start_bit: 23
+            length: 8
+            signed: false
+            scale: 1
+            min: 1
+            max: 31
+            endianness: "big"
+            unit: ""
+            receivers:
+                - WDAQ
+                - Jetson
+        - Hour:
+            start_bit: 31
+            length: 8
+            signed: false
+            scale: 1
+            min: 0
+            max: 24
+            endianness: "big"
+            unit: ""
+            receivers:
+                - WDAQ
+                - Jetson
+        - Minute:
+            start_bit: 39
+            length: 8
+            signed: false
+            scale: 1
+            min: 0
+            max: 60
+            endianness: "big"
+            unit: ""
+            receivers:
+                - WDAQ
+                - Jetson
+        - Second:
+            start_bit: 47
+            length: 8
+            signed: false
+            scale: 1
+            min: 0
+            max: 60
+            endianness: "big"
+            unit: ""
+            receivers:
+                - WDAQ
+                - Jetson
+        - TenthMs:
+            start_bit: 55
+            length: 16
+            signed: false
+            scale: 1
+            min: 0
+            max: 10000
+            endianness: "big"
+            unit: "0.1ms"
+            receivers:
+                - WDAQ
+                - Jetson
+  - GPS_Quaternion:
+      id: 0x407
+      dlc: 8
+      sender: MTI600
+      signals:
+        - Q0:
+            start_bit: 7
+            length: 16
+            signed: true
+            scale: 3.0517578125e-05
+            min: -1
+            max: 1
+            endianness: "big"
+            unit: ""
+            receivers:
+                - WDAQ
+                - Jetson
+        - Q1:
+            start_bit: 23
+            length: 16
+            signed: true
+            scale: 3.0517578125e-05
+            min: -1
+            max: 1
+            endianness: "big"
+            unit: ""
+            receivers:
+                - WDAQ
+                - Jetson
+        - Q2:
+            start_bit: 39
+            length: 16
+            signed: true
+            scale: 3.0517578125e-05
+            min: -1
+            max: 1
+            endianness: "big"
+            unit: ""
+            receivers:
+                - WDAQ
+                - Jetson
+        - Q3:
+            start_bit: 55
+            length: 16
+            signed: true
+            scale: 3.0517578125e-05
+            min: -1
+            max: 1
+            endianness: "big"
+            unit: ""
+            receivers:
+                - WDAQ
+                - Jetson
+  - GPS_Euler_Angles:
+      id: 0x408
+      dlc: 6
+      sender: MTI600
+      signals:
+        - Roll:
+            start_bit: 7
+            length: 16
+            signed: true
+            scale: 0.0078125
+            min: -180
+            max: 180
+            endianness: "big"
+            unit: "deg"
+            receivers:
+                - WDAQ
+                - Jetson
+        - Pitch:
+            start_bit: 23
+            length: 16
+            signed: true
+            scale: 0.0078125
+            min: -90
+            max: 90
+            endianness: "big"
+            unit: "deg"
+            receivers:
+                - WDAQ
+                - Jetson
+        - Yaw:
+            start_bit: 39
+            length: 16
+            signed: true
+            scale: 0.0078125
+            min: -180
+            max: 180
+            endianness: "big"
+            unit: "deg"
+            receivers:
+                - WDAQ
+                - Jetson
+  - GPS_Delta_V:
+      id: 0x409
+      dlc: 7
+      sender: MTI600
+      signals:
+        - dvX:
+            start_bit: 7
+            length: 16
+            signed: true
+            scale: 7.62939453125e-06
+            min: -0.25
+            max: 0.25
+            endianness: "big"
+            unit: "m/s"
+            receivers:
+                - WDAQ
+                - Jetson
+        - dvY:
+            start_bit: 23
+            length: 16
+            signed: true
+            scale: 7.62939453125e-06
+            min: -0.25
+            max: 0.25
+            endianness: "big"
+            unit: "m/s"
+            receivers:
+                - WDAQ
+                - Jetson
+        - dvZ:
+            start_bit: 39
+            length: 16
+            signed: true
+            scale: 7.62939453125e-06
+            min: -0.25
+            max: 0.25
+            endianness: "big"
+            unit: "m/s"
+            receivers:
+                - WDAQ
+                - Jetson
+        - Exponent:
+            start_bit: 55
+            length: 8
+            signed: false
+            scale: 1
+            min: 0
+            max: 255
+            endianness: "big"
+            unit: ""
+            receivers:
+                - WDAQ
+                - Jetson
+                
+  - GPS_Rate_Of_Turn:
+      id: 0x40A
+      dlc: 6
+      sender: MTI600
+      signals:
+        - gyrX:
+            start_bit: 7
+            length: 16
+            signed: true
+            scale: 0.001953125
+            min: -35
+            max: 35
+            endianness: "big"
+            unit: "rad/s"
+            receivers:
+                - WDAQ
+                - Jetson
+        - gyrY:
+            start_bit: 23
+            length: 16
+            signed: true
+            scale: 0.001953125
+            min: -35
+            max: 35
+            endianness: "big"
+            unit: "rad/s"
+            receivers:
+                - WDAQ
+                - Jetson
+        - gyrZ:
+            start_bit: 39
+            length: 16
+            signed: true
+            scale: 0.001953125
+            min: -35
+            max: 35
+            endianness: "big"
+            unit: "rad/s"
+            receivers:
+                - WDAQ
+                - Jetson
+  - GPS_Delta_Q:
+      id: 0x40B
+      dlc: 8
+      sender: MTI600
+      signals:
+        - dq0:
+            start_bit: 7
+            length: 16
+            signed: true
+            scale: 3.0518509476e-05
+            min: -1
+            max: 1
+            endianness: "big"
+            unit: ""
+            receivers:
+                - WDAQ
+                - Jetson
+        - dq1:
+            start_bit: 23
+            length: 16
+            signed: true
+            scale: 3.0518509476e-05
+            min: -1
+            max: 1
+            endianness: "big"
+            unit: ""
+            receivers:
+                - WDAQ
+                - Jetson
+        - dq2:
+            start_bit: 39
+            length: 16
+            signed: true
+            scale: 3.0518509476e-05
+            min: -1
+            max: 1
+            endianness: "big"
+            unit: ""
+            receivers:
+                - WDAQ
+                - Jetson
+        - dq3:
+            start_bit: 55
+            length: 16
+            signed: true
+            scale: 3.0518509476e-05
+            min: -1
+            max: 1
+            endianness: "big"
+            unit: ""
+            receivers:
+                - WDAQ
+                - Jetson
+  - GPS_Acceleration:
+      id: 0x40C
+      dlc: 6
+      sender: MTI600
+      signals:
+        - AccX:
+            start_bit: 7
+            length: 16
+            signed: true
+            scale: 0.00390625
+            min: -100
+            max: 100
+            endianness: "big"
+            unit: "m/s^2"
+            receivers:
+                - WDAQ
+                - Jetson
+        - AccY:
+            start_bit: 23
+            length: 16
+            signed: true
+            scale: 0.00390625
+            min: -100
+            max: 100
+            endianness: "big"
+            unit: "m/s^2"
+            receivers:
+                - WDAQ
+                - Jetson
+        - AccZ:
+            start_bit: 39
+            length: 16
+            signed: true
+            scale: 0.00390625
+            min: -100
+            max: 100
+            endianness: "big"
+            unit: "m/s^2"
+            receivers:
+                - WDAQ
+                - Jetson
+  - GPS_Magnetic_Field:
+      id: 0x40D
+      dlc: 6
+      sender: MTI600
+      signals:
+        - MagX:
+            start_bit: 7
+            length: 16
+            signed: true
+            scale: 0.0009765625
+            min: -32
+            max: 32
+            endianness: "big"
+            unit: "a.u."
+            receivers:
+                - WDAQ
+                - Jetson
+        - MagY:
+            start_bit: 23
+            length: 16
+            signed: true
+            scale: 0.0009765625
+            min: -32
+            max: 32
+            endianness: "big"
+            unit: "a.u."
+            receivers:
+                - WDAQ
+                - Jetson
+        - MagZ:
+            start_bit: 39
+            length: 16
+            signed: true
+            scale: 0.0009765625
+            min: -32
+            max: 32
+            endianness: "big"
+            unit: "a.u."
+            receivers:
+                - WDAQ
+                - Jetson
+  - GPS_Temperature:
+      id: 0x40E
+      dlc: 2
+      sender: MTI600
+      signals:
+        - Temperature:
+            start_bit: 7
+            length: 16
+            signed: true
+            scale: 0.00390625
+            min: -40
+            max: 85
+            endianness: "big"
+            unit: "degC"
+            receivers:
+                - WDAQ
+                - Jetson
+  - GPS_Baro_Pressure:
+      id: 0x40F
+      dlc: 4
+      sender: MTI600
+      signals:
+        - Pressure:
+            start_bit: 7
+            length: 32
+            signed: false
+            scale: 3.0517578125e-05
+            min: 30000
+            max: 125000
+            endianness: "big"
+            unit: "Pa"
+            receivers:
+                - WDAQ
+                - Jetson
+  - GPS_Rate_Of_Turn_HR:
+      id: 0x410
+      dlc: 6
+      sender: MTI600
+      signals:
+        - gyrX:
+            start_bit: 7
+            length: 16
+            signed: true
+            scale: 0.001953125
+            min: -35
+            max: 35
+            endianness: "big"
+            unit: "rad/s"
+            receivers:
+                - WDAQ
+                - Jetson
+        - gyrY:
+            start_bit: 23
+            length: 16
+            signed: true
+            scale: 0.001953125
+            min: -35
+            max: 35
+            endianness: "big"
+            unit: "rad/s"
+            receivers:
+                - WDAQ
+                - Jetson
+        - gyrZ:
+            start_bit: 39
+            length: 16
+            signed: true
+            scale: 0.001953125
+            min: -35
+            max: 35
+            endianness: "big"
+            unit: "rad/s"
+            receivers:
+                - WDAQ
+                - Jetson
+  - GPS_Acceleration_HR:
+      id: 0x411
+      dlc: 6
+      sender: MTI600
+      signals:
+        - AccX:
+            start_bit: 7
+            length: 16
+            signed: true
+            scale: 0.00390625
+            min: -100
+            max: 100
+            endianness: "big"
+            unit: "m/s^2"
+            receivers:
+                - WDAQ
+                - Jetson
+        - AccY:
+            start_bit: 23
+            length: 16
+            signed: true
+            scale: 0.00390625
+            min: -100
+            max: 100
+            endianness: "big"
+            unit: "m/s^2"
+            receivers:
+                - WDAQ
+                - Jetson
+        - AccZ:
+            start_bit: 39
+            length: 16
+            signed: true
+            scale: 0.00390625
+            min: -100
+            max: 100
+            endianness: "big"
+            unit: "m/s^2"
+            receivers:
+                - WDAQ
+                - Jetson
+  - GPS_Lat_Lon:
+      id: 0x412
+      dlc: 8
+      sender: MTI600
+      signals:
+        - Latitude:
+            start_bit: 7
+            length: 32
+            signed: true
+            scale: 5.9604644775e-08
+            min: -90
+            max: 90
+            endianness: "big"
+            unit: "deg"
+            receivers:
+                - WDAQ
+                - Jetson
+        - Longitude:
+            start_bit: 39
+            length: 32
+            signed: true
+            scale: 1.1920928955e-07
+            min: -180
+            max: 180
+            endianness: "big"
+            unit: "deg"
+            receivers:
+                - WDAQ
+                - Jetson
+  - GPS_Altitude_Ellipsoid:
+      id: 0x413
+      dlc: 4
+      sender: MTI600
+      signals:
+        - AltitudeEllipsoid:
+            start_bit: 7
+            length: 32
+            signed: false
+            scale: 3.0517578125e-05
+            min: 0
+            max: 50000
+            endianness: "big"
+            unit: "m"
+            receivers:
+                - WDAQ
+                - Jetson
+  - GPS_Velocity_XYZ:
+      id: 0x414
+      dlc: 6
+      sender: MTI600
+      signals:
+        - VelX:
+            start_bit: 7
+            length: 16
+            signed: true
+            scale: 0.015625
+            min: -500
+            max: 500
+            endianness: "big"
+            unit: "m/s"
+            receivers:
+                - WDAQ
+                - Jetson
+        - VelY:
+            start_bit: 23
+            length: 16
+            signed: true
+            scale: 0.015625
+            min: -500
+            max: 500
+            endianness: "big"
+            unit: "m/s"
+            receivers:
+                - WDAQ
+                - Jetson
+        - VelZ:
+            start_bit: 39
+            length: 16
+            signed: true
+            scale: 0.015625
+            min: -500
+            max: 500
+            endianness: "big"
+            unit: "m/s"
+            receivers:
+                - WDAQ
+                - Jetson
+  - TS_Stats:
+      id: 0x330
+      dlc: 6
+      sender: ACM
+      signals:
+        - TS_Voltage:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1035 # from ACM TS Sense Voltage Divider + Pack Voltage
+            unit: "V"
+            receivers:
+                - RC
+                - WDAQ
+        - TS_Current_Low:
+            start_bit: 16
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 0.01
+            offset: 0
+            min: -32768
+            max: 32767
+            unit: "A"
+            receivers:
+                - RC
+                - WDAQ
+        - TS_Current_High:
+            start_bit: 32
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 0.01
+            offset: 0
+            min: -32768
+            max: 32767
+            unit: "A"
+            receivers:
+                - RC
+                - WDAQ
+
+  - IMD_Status:
+      id: 0x48
+      dlc: 5
+      sender: ACM
+      signals:
+        - IMD_DutyCycle:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.01
+            offset: 0
+            min: 0
+            max: 100
+            unit: "%"
+            receivers:
+                - WDAQ
+        - IMD_Frequency:
+            start_bit: 16
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.01
+            offset: 0
+            min: 0
+            max: 50
+            unit: "Hz"
+            receivers:
+                - WDAQ
+        - IMD_Ok:
+            start_bit: 32
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+                - WDAQ
+  - BMS_Cell_Open_Wire:
+      id: 0x51
+      dlc: 1
+      sender: ACM
+      signals:
+        - Cell:
+            start_bit: 0
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 138
+            unit: ""
+            receivers:
+              - WDAQ
+  - BMS_CV_Group:
+      id: 0x52
+      dlc: 8
+      sender: ACM
+      signals:
+        - GroupSelect:
+            start_bit: 0
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 20
+            unit: ""
+            receivers:
+                - WDAQ
+        - V1:
+            start_bit: 8
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 0.01
+            offset: 3
+            min: 3
+            max: 4.35
+            unit: "V"
+            receivers:
+                - WDAQ
+        - V2:
+            start_bit: 16
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 0.01
+            offset: 3
+            min: 3
+            max: 4.35
+            unit: "V"
+            receivers:
+                - WDAQ
+        - V3:
+            start_bit: 24
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 0.01
+            offset: 3
+            min: 3
+            max: 4.35
+            unit: "V"
+            receivers:
+                - WDAQ
+        - V4:
+            start_bit: 32
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 0.01
+            offset: 3
+            min: 3
+            max: 4.35
+            unit: "V"
+            receivers:
+                - WDAQ
+        - V5:
+            start_bit: 40
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 0.01
+            offset: 3
+            min: 3
+            max: 4.35
+            unit: "V"
+            receivers:
+                - WDAQ
+        - V6:
+            start_bit: 48
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 0.01
+            offset: 3
+            min: 3
+            max: 4.35
+            unit: "V"
+            receivers:
+                - WDAQ
+        - V7:
+            start_bit: 56
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 0.01
+            offset: 3
+            min: 3
+            max: 4.35
+            unit: "V"
+            receivers:
+                - WDAQ
+
+  - BMS_CT_Group:
+      id: 0x53
+      dlc: 8
+      sender: ACM
+      signals:
+          - GroupSelect:
+              start_bit: 0
+              length: 8
+              endianness: "little"
+              signed: false
+              scale: 1
+              offset: 0
+              min: 0
+              max: 20
+              unit: ""
+              receivers:
+                  - WDAQ
+          - T1:
+              start_bit: 16
+              length: 16
+              endianness: "little"
+              signed: false
+              scale: 0.01
+              offset: 0
+              min: 0
+              max: 100
+              unit: "C"
+              receivers:
+                  - WDAQ
+          - T2:
+              start_bit: 32
+              length: 16
+              endianness: "little"
+              signed: false
+              scale: 0.01
+              offset: 0
+              min: 0
+              max: 100
+              unit: "C"
+              receivers:
+                  - WDAQ
+          - T3:
+              start_bit: 48
+              length: 16
+              endianness: "little"
+              signed: false
+              scale: 0.01
+              offset: 0
+              min: 0
+              max: 100
+              unit: "C"
+              receivers:
+                  - WDAQ
+
+  - BMS_CV_MinMaxAvg:
+      id: 0x50
+      dlc: 8
+      sender: ACM
+      signals:
+        - MinVoltage:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.0001
+            offset: 0
+            min: 0
+            max: 6.5535
+            unit: "V"
+            receivers:
+                - WDAQ
+        - AvgVoltage:
+            start_bit: 16
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.0001
+            offset: 0
+            min: 0
+            max: 6.5535
+            unit: "V"
+            receivers:
+                - WDAQ
+        - MaxVoltage:
+            start_bit: 32
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.0001
+            offset: 0
+            min: 0
+            max: 6.5535
+            unit: "V"
+            receivers:
+                - WDAQ
+        - MinCell:
+            start_bit: 48
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 138
+            unit: ""
+            receivers:
+                - WDAQ
+        - MaxCell:
+            start_bit: 56
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 138
+            unit: ""
+            receivers:
+                - WDAQ
+
+  - BMS_CT_MinMaxAvg:
+      id: 0x49
+      dlc: 8
+      sender: ACM
+      signals:
+        - MinTemp:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.01
+            offset: 0
+            min: 0
+            max: 100
+            unit: "C"
+            receivers:
+                - WDAQ
+        - AvgTemp:
+            start_bit: 16
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.01
+            offset: 0
+            min: 0
+            max: 100
+            unit: "C"
+            receivers:
+                - WDAQ
+        - MaxTemp:
+            start_bit: 32
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.01
+            offset: 0
+            min: 0
+            max: 100
+            unit: "C"
+            receivers:
+                - WDAQ
+        - MinCell:
+            start_bit: 48
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 138
+            unit: ""
+            receivers:
+                - WDAQ
+        - MaxCell:
+            start_bit: 56
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 138
+            unit: ""
+            receivers:
+                - WDAQ
+
+  - DFU_Requested:
+      id: 0x105
+      dlc: 1
+      sender: Flasher
+      signals:
+        - DFU_Controller:
+            enum: DFU_Controller
+            start_bit: 0
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 4
+            receivers:
+              - ACM
+              - FC
+              - RC
+              - WDAQ
+
+  - DFU_Ack:
+      id: 0x104
+      dlc: 0
+      sender: Flasher
+      signals: []
+
+  - RC_SDC_State:
+      id: 0x75
+      dlc: 1
+      sender: RC
+      signals:
+        - SDC_Point:
+            enum: SDC_Point
+            start_bit: 0
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 255
+            receivers:
+              - ACM
+              - FC
+              - WDAQ
+
+  - RES_Sync:
+      id: 0x80
+      dlc: 8
+      sender: RC
+      signals: []
+
+  - RES_Transmit_PDO:
+      id: 0x191
+      dlc: 8
+      sender: RES
+      signals:
+        - RES_Race_Mode:
+            start_bit: 63
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            receivers:
+              - RC
+        - RES_Radio_Quality:
+            start_bit: 48
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 100
+            unit: "%"
+            receivers:
+              - RC
+        - RES_Status_EStop2:
+            enum: RES_Status
+            start_bit: 31
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            receivers:
+              - RC
+        - RES_Status_Button_K3:
+            enum: RES_Status
+            start_bit: 2
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 0
+            receivers:
+              - Jetson
+              - RC
+        - RES_Status_Switch_K2:
+            enum: RES_Status
+            start_bit: 1
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            receivers:
+              - Jetson
+              - RC
+        - RES_Status_EStop1:
+            enum: RES_Status
+            start_bit: 0
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            receivers:
+              - Jetson
+              - RC
+
+  - RES_Operational_Mode:
+      id: 0x0
+      dlc: 2
+      sender: RC
+      signals:
+        - RES_Node_ID:
+            enum: RES_Node_ID
+            start_bit: 8
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 64
+            receivers:
+              - RES
+        - RES_Requested_State:
+            enum: RES_Requested_State
+            start_bit: 0
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            receivers:
+              - RES
+
+  - RES_Init:
+      id: 0x711
+      dlc: 1
+      sender: RES
+      signals:
+        - RES_Init:
+            start_bit: 0
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 0
+            receivers:
+              - RC
+
+  - Jetson_Error:
+      id: 0x17
+      dlc: 1
+      sender: RC
+      signals:
+        - Jetson_Error:
+            start_bit: 0
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 255
+            receivers:
+              - RC
+
+  - ACM_State:
+      id: 0x15
+      dlc: 1
+      sender: ACM
+      signals:
+        - ACM_Error:
+            enum: ACM_Error
+            start_bit: 0
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 255
+            receivers:
+              - RC
+
+  - ACM_SDC_State:
+      id: 0x76
+      dlc: 1
+      sender: RC
+      signals:
+        - SDC_Point:
+            enum: SDC_Point
+            start_bit: 0
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 255
+            receivers:
+              - RC
+              - WDAQ
+  - RC_State:
+      id: 0x18
+      dlc: 2
+      sender: RC
+      signals:
+        - RC_State:
+            enum: RC_State
+            start_bit: 0
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 7
+            receivers:
+              - ACM
+              - WDAQ
+        - RC_Error:
+            enum: RC_Error
+            start_bit: 8
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 255
+            receivers:
+              - ACM
+              - WDAQ
+
+  - APPS:
+      id: 0x200
+      dlc: 4
+      sender: RC
+      signals:
+        - APPS_Implausible:
+            start_bit: 26
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            receivers:
+              - WDAQ
+        - Pedal_Travel:
+            start_bit: 16
+            length: 10
+            endianness: "little"
+            signed: false
+            scale: 0.1
+            offset: 0
+            min: 0
+            max: 100
+            unit: "%"
+            receivers:
+              - WDAQ
+        - APPS_Raw:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 65535
+            receivers:
+              - WDAQ
+
+  - BSPD:
+      id: 0x212
+      dlc: 2
+      sender: RC
+      signals:
+        - BSPD_Current:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 4095
+            unit: "counts"
+            receivers:
+              - WDAQ
+
+  - Inverter_Torque_Cmd:
+      id: 0x210
+      dlc: 8
+      sender: RC
+      signals:
+        - FL_Torque:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.2
+            offset: -6400
+            min: -6400
+            max: 6451
+            unit: "Nm"
+            receivers:
+              - WDAQ
+        - FR_Torque:
+            start_bit: 16
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.2
+            offset: -6400
+            min: -6400
+            max: 6451
+            unit: "Nm"
+            receivers:
+              - WDAQ
+        - RL_Torque:
+            start_bit: 32
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.2
+            offset: -6400
+            min: -6400
+            max: 6451
+            unit: "Nm"
+            receivers:
+              - WDAQ
+        - RR_Torque:
+            start_bit: 48
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.2
+            offset: -6400
+            min: -6400
+            max: 6451
+            unit: "Nm"
+            receivers:
+              - WDAQ
+
+  - Inverter_Speed_Cmd:
+      id: 0x211
+      dlc: 8
+      sender: RC
+      signals:
+        - FL_Speed:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -32000
+            min: -32000
+            max: 32255
+            unit: "RPM"
+            receivers:
+              - WDAQ
+        - FR_Speed:
+            start_bit: 16
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -32000
+            min: -32000
+            max: 32255
+            unit: "RPM"
+            receivers:
+              - WDAQ
+        - RL_Speed:
+            start_bit: 32
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -32000
+            min: -32000
+            max: 32255
+            unit: "RPM"
+            receivers:
+              - WDAQ
+        - RR_Speed:
+            start_bit: 48
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -32000
+            min: -32000
+            max: 32255
+            unit: "RPM"
+            receivers:
+              - WDAQ
+
+  # Ground speed sensor (optical). Frames from dv.dbc SensoricSolutionsOMSRace node.
+  - GroundSpeed_PitchAndRoll:
+      id: 0x602
+      dlc: 4
+      sender: GroundSpeed
+      signals:
+        - Roll:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 0.003
+            offset: 0
+            min: -90
+            max: 90
+            unit: "deg"
+            receivers:
+              - WDAQ
+              - Jetson
+        - Pitch:
+            start_bit: 16
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 0.003
+            offset: 0
+            min: -90
+            max: 90
+            unit: "deg"
+            receivers:
+              - WDAQ
+              - Jetson
+
+  - GroundSpeed_AccHor:
+      id: 0x603
+      dlc: 6
+      sender: GroundSpeed
+      signals:
+        - AccXHor:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 0.02
+            offset: 0
+            min: -200
+            max: 200
+            unit: "m/s^2"
+            receivers:
+              - WDAQ
+              - Jetson
+        - AccYHor:
+            start_bit: 16
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 0.02
+            offset: 0
+            min: -200
+            max: 200
+            unit: "m/s^2"
+            receivers:
+              - WDAQ
+              - Jetson
+        - AccZHor:
+            start_bit: 32
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 0.02
+            offset: 0
+            min: -200
+            max: 200
+            unit: "m/s^2"
+            receivers:
+              - WDAQ
+              - Jetson
+
+  - GroundSpeed_RateHor:
+      id: 0x604
+      dlc: 6
+      sender: GroundSpeed
+      signals:
+        - RateXHor:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 0.02
+            offset: 0
+            min: -500
+            max: 500
+            unit: "deg/s"
+            receivers:
+              - WDAQ
+              - Jetson
+        - RateYHor:
+            start_bit: 16
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 0.02
+            offset: 0
+            min: -500
+            max: 500
+            unit: "deg/s"
+            receivers:
+              - WDAQ
+              - Jetson
+        - RateZHor:
+            start_bit: 32
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 0.02
+            offset: 0
+            min: -500
+            max: 500
+            unit: "deg/s"
+            receivers:
+              - WDAQ
+              - Jetson
+
+  - GroundSpeed_VelAndAng:
+      id: 0x605
+      dlc: 8
+      sender: GroundSpeed
+      signals:
+        - VelX:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 0.02
+            offset: 0
+            min: -450
+            max: 450
+            unit: "km/h"
+            receivers:
+              - WDAQ
+              - Jetson
+        - VelY:
+            start_bit: 16
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 0.02
+            offset: 0
+            min: -100
+            max: 100
+            unit: "km/h"
+            receivers:
+              - WDAQ
+              - Jetson
+        - VelA:
+            start_bit: 32
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 0.02
+            offset: 0
+            min: 0
+            max: 450
+            unit: "km/h"
+            receivers:
+              - WDAQ
+              - Jetson
+        - AngS:
+            start_bit: 48
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 0.003
+            offset: 0
+            min: -40
+            max: 40
+            unit: "deg"
+            receivers:
+              - WDAQ
+              - Jetson
+
+  - GroundSpeed_VelAndAngSp:
+      id: 0x609
+      dlc: 8
+      sender: GroundSpeed
+      signals:
+        - VelASp:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 0.02
+            offset: 0
+            min: 0
+            max: 450
+            unit: "km/h"
+            receivers:
+              - WDAQ
+              - Jetson
+        - AngSSp:
+            start_bit: 16
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 0.003
+            offset: 0
+            min: -40
+            max: 40
+            unit: "deg"
+            receivers:
+              - WDAQ
+              - Jetson
+        - QualityCh0:
+            start_bit: 32
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 65535
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - QualityCh1:
+            start_bit: 48
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 65535
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+
+  - GroundSpeed_Status:
+      id: 0x60B
+      dlc: 7
+      sender: GroundSpeed
+      signals:
+        - Standstill:
+            start_bit: 0
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - DirectionNeg:
+            start_bit: 1
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - RateAdjustActive:
+            start_bit: 2
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - Trigger:
+            start_bit: 4
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - BrakeAccStatus:
+            start_bit: 5
+            length: 3
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 5
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - IlluOn:
+            start_bit: 8
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - IlluOk:
+            start_bit: 9
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - SensorConnected:
+            start_bit: 10
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - AdjustmentActive:
+            start_bit: 12
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - CanAngAdjFailed:
+            start_bit: 13
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - StatusOk:
+            start_bit: 15
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - TempSensor:
+            start_bit: 16
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 0.1
+            offset: 0
+            min: -20
+            max: 85
+            unit: "C"
+            receivers:
+              - WDAQ
+              - Jetson
+        - SampleTime:
+            start_bit: 32
+            length: 24
+            endianness: "little"
+            signed: false
+            scale: 0.001
+            offset: 0
+            min: 0
+            max: 16777.215
+            unit: "s"
+            receivers:
+              - WDAQ
+              - Jetson
+
+  - GroundSpeed_Info:
+      id: 0x60C
+      dlc: 5
+      sender: GroundSpeed
+      signals:
+        - InfoError:
+            start_bit: 0
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - InfoTransversal:
+            start_bit: 1
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - InfoInverseMounting:
+            start_bit: 2
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - InfoMovAvgActive:
+            start_bit: 3
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - InfoPoi:
+            start_bit: 4
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - InfoIlluIncomp:
+            start_bit: 6
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - InfoServiceMode:
+            start_bit: 7
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - LastErrorCode:
+            start_bit: 16
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 65535
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - TempProcessor:
+            start_bit: 32
+            length: 8
+            endianness: "little"
+            signed: true
+            scale: 1
+            offset: 0
+            min: -128
+            max: 127
+            unit: "C"
+            receivers:
+              - WDAQ
+              - Jetson
+
+  - GroundSpeed_StaticInfo:
+      id: 0x60D
+      dlc: 8
+      sender: GroundSpeed
+      signals:
+        - SerialEcu:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 65535
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - SerialSensor:
+            start_bit: 16
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 65535
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - FwVersion:
+            start_bit: 32
+            length: 24
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 16777215
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson
+        - ParamSetLoaded:
+            start_bit: 56
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 255
+            unit: ""
+            receivers:
+              - WDAQ
+              - Jetson

@@ -1,0 +1,1314 @@
+nodes:
+  - ACM
+  - InverterA
+  - InverterB
+  - RC
+  - Jetson
+
+messages:
+  - InvB_ActualValues_Onboard_Converter:
+      id: 0x18FF03F7 # this can id doesn't exist
+      extended: true
+      dlc: 8
+      sender: InverterB
+      signals:
+        - Actual_Voltage:
+            start_bit: 8
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.001
+            offset: 0
+            min: 0
+            max: 64.255
+            unit: "V"
+            receivers:
+              - RC
+        - Actual_Temperature:
+            start_bit: 56
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -40
+            min: -40
+            max: 210
+            unit: "C"
+            receivers:
+              - RC
+        - Actual_Power:
+            start_bit: 40
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.005
+            offset: -160
+            min: -160
+            max: 161.275
+            unit: "kW"
+            receivers:
+              - RC
+        - Actual_InverterStatus:
+            enum: InverterStatus
+            start_bit: 0
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Actual_InverterReady:
+            enum: InverterReady
+            start_bit: 2
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Actual_ErrorStatus:
+            enum: InverterErrorStatus
+            start_bit: 4
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Actual_Current:
+            start_bit: 24
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.05
+            offset: -1600
+            min: -1600
+            max: 1612.75
+            unit: "A"
+            receivers:
+              - RC
+
+  - InvA_ActualValues_Onboard_Converter:
+      id: 0x18FF03EA # not sure about this
+      extended: true
+      dlc: 8
+      sender: InverterA
+      signals:
+        - Actual_Temperature:
+            start_bit: 56
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -40
+            min: -40
+            max: 210
+            unit: "C"
+            receivers:
+              - RC
+        - Actual_Power:
+            start_bit: 40
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.005
+            offset: -160
+            min: -160
+            max: 161.275
+            unit: "kW"
+            receivers:
+              - RC
+        - Actual_Current:
+            start_bit: 24
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.05
+            offset: -1600
+            min: -1600
+            max: 1612.75
+            unit: "A"
+            receivers:
+              - RC
+        - Actual_Voltage:
+            start_bit: 8
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.001
+            offset: 0
+            min: 0
+            max: 64.255
+            unit: "V"
+            receivers:
+              - RC
+        - Actual_ErrorStatus:
+            enum: InverterErrorStatus
+            start_bit: 4
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Actual_InverterReady:
+            enum: InverterReady
+            start_bit: 2
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Actual_InverterStatus:
+            enum: InverterStatus
+            start_bit: 0
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+
+  - InvB_ActualValues_Motor_RL:
+      id: 0x18FF02F7 # MOBILE14_Actvals_DCUB
+      extended: true
+      dlc: 8
+      sender: InverterB
+      signals:
+        - Actual_MotorTemperature:
+            start_bit: 56
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -40
+            min: -40
+            max: 215
+            unit: "C"
+            receivers:
+              - RC
+        - Actual_Power:
+            start_bit: 40
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.005
+            offset: -160
+            min: -160
+            max: 167.675
+            unit: "kW"
+            receivers:
+              - RC
+        - Actual_Torque:
+            start_bit: 24
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.2
+            offset: -6400
+            min: -6400
+            max: 6707
+            unit: "Nm"
+            receivers:
+              - RC
+        - Actual_Speed:
+            start_bit: 8
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -32000
+            min: -32000
+            max: 33535
+            unit: "RPM"
+            receivers:
+              - RC
+        - Actual_ErrorStatus:
+            enum: InverterErrorStatus
+            start_bit: 4
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Actual_Limitation_Status:
+            enum: InverterLimitationStatus
+            start_bit: 6
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Actual_InverterReady:
+            enum: InverterReady
+            start_bit: 2
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Actual_InverterStatus:
+            enum: InverterStatus
+            start_bit: 0
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+
+  - InvA_ActualValues_Motor_FR:
+      id: 0x18FF02EA # MOBILE1_Actvals_DCUB
+      extended: true
+      dlc: 8
+      sender: InverterA
+      signals:
+        - Actual_MotorTemperature:
+            start_bit: 56
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -40
+            min: -40
+            max: 215
+            unit: "C"
+            receivers:
+              - RC
+        - Actual_Power:
+            start_bit: 40
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.005
+            offset: -160
+            min: -160
+            max: 167.675
+            unit: "kW"
+            receivers:
+              - RC
+        - Actual_Torque:
+            start_bit: 24
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.2
+            offset: -6400
+            min: -6400
+            max: 6707
+            unit: "Nm"
+            receivers:
+              - RC
+        - Actual_Speed:
+            start_bit: 8
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -32000
+            min: -32000
+            max: 33535
+            unit: "RPM"
+            receivers:
+              - RC
+        - Actual_ErrorStatus:
+            enum: InverterErrorStatus
+            start_bit: 4
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Actual_Limitation_Status:
+            enum: InverterLimitationStatus
+            start_bit: 6
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Actual_InverterReady:
+            enum: InverterReady
+            start_bit: 2
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Actual_InverterStatus:
+            enum: InverterStatus
+            start_bit: 0
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+
+  - InvB_ActualValues_Motor_RR:
+      id: 0x18FF01F7 # MOBILE14_Actvals_DCUA
+      extended: true
+      dlc: 8
+      sender: InverterB
+      signals:
+        - Actual_MotorTemperature:
+            start_bit: 56
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -40
+            min: -40
+            max: 215
+            unit: "C"
+            receivers:
+              - RC
+        - Actual_Power:
+            start_bit: 40
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.005
+            offset: -160
+            min: -160
+            max: 167.675
+            unit: "kW"
+            receivers:
+              - RC
+        - Actual_Torque:
+            start_bit: 24
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.2
+            offset: -6400
+            min: -6400
+            max: 6707
+            unit: "Nm"
+            receivers:
+              - RC
+        - Actual_Speed:
+            start_bit: 8
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -32000
+            min: -32000
+            max: 33535
+            unit: "RPM"
+            receivers:
+              - RC
+        - Actual_ErrorStatus:
+            enum: InverterErrorStatus
+            start_bit: 4
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Actual_Limitation_Status:
+            enum: InverterLimitationStatus
+            start_bit: 6
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Actual_InverterReady:
+            enum: InverterReady
+            start_bit: 2
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Actual_InverterStatus:
+            enum: InverterStatus
+            start_bit: 0
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+
+  - InvA_ActualValues_Motor_FL:
+      id: 0x18FF01EA # MOBILE1_Actvals_DCUA
+      extended: true
+      dlc: 8
+      sender: InverterA
+      signals:
+        - Actual_MotorTemperature:
+            start_bit: 56
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -40
+            min: -40
+            max: 215
+            unit: "C"
+            receivers:
+              - RC
+        - Actual_Power:
+            start_bit: 40
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.005
+            offset: -160
+            min: -160
+            max: 167.675
+            unit: "kW"
+            receivers:
+              - RC
+        - Actual_Torque:
+            start_bit: 24
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.2
+            offset: -6400
+            min: -6400
+            max: 6707
+            unit: "Nm"
+            receivers:
+              - RC
+        - Actual_Speed:
+            start_bit: 8
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -32000
+            min: -32000
+            max: 33535
+            unit: "RPM"
+            receivers:
+              - RC
+        - Actual_ErrorStatus:
+            enum: InverterErrorStatus
+            start_bit: 4
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Actual_Limitation_Status:
+            enum: InverterLimitationStatus
+            start_bit: 6
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Actual_InverterReady:
+            enum: InverterReady
+            start_bit: 2
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Actual_InverterStatus:
+            enum: InverterStatus
+            start_bit: 0
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+
+  - InvB_Status:
+      id: 0x18FF00F7 # MOBILE14_Actvals_Device
+      extended: true
+      dlc: 8
+      sender: InverterB
+      signals:
+        - Actual_Device_Temperature:
+            start_bit: 56
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -40
+            min: -40
+            max: 215
+            unit: "C"
+            receivers:
+              - RC
+        - Actual_DC_Bus_Power:
+            start_bit: 40
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.005
+            offset: -160
+            min: -160
+            max: 167.675
+            unit: "kW"
+            receivers:
+              - RC
+        - Clamp15_Status:
+            enum: Clamp15_Status
+            start_bit: 8
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Actual_DC_Bus_Voltage:
+            start_bit: 32
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 4
+            offset: 0
+            min: 0
+            max: 1020
+            unit: "V"
+            receivers:
+              - RC
+        - Error_Code:
+            start_bit: 16
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 65535
+            receivers:
+              - RC
+        - Flex2:
+            start_bit: 14
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Flex1:
+            start_bit: 12
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - DC_Link_Charge_State:
+            enum: DC_Link_Charge_State
+            start_bit: 10
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - DEVICE_NUMBER:
+            start_bit: 4
+            length: 4
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 15
+            receivers:
+              - RC
+        - Error_Lamp:
+            enum: Error_Lamp
+            start_bit: 2
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Device_State:
+            enum: Device_State
+            start_bit: 0
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+
+  - InvA_Status:
+      id: 0x18FF00EA # MOBILE1_Actvals_Device
+      extended: true
+      dlc: 8
+      sender: InverterA
+      signals:
+        - Actual_Device_Temperature:
+            start_bit: 56
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -40
+            min: -40
+            max: 215
+            unit: "C"
+            receivers:
+              - RC
+        - Actual_DC_Bus_Power:
+            start_bit: 40
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.005
+            offset: -160
+            min: -160
+            max: 167.675
+            unit: "kW"
+            receivers:
+              - RC
+        - Clamp15_Status:
+            enum: Clamp15_Status
+            start_bit: 8
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Actual_DC_Bus_Voltage:
+            start_bit: 32
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 4
+            offset: 0
+            min: 0
+            max: 1020
+            unit: "V"
+            receivers:
+              - RC
+        - Error_Code:
+            start_bit: 16
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 65535
+            receivers:
+              - RC
+        - Flex2:
+            start_bit: 14
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Flex1:
+            start_bit: 12
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - DC_Link_Charge_State:
+            enum: DC_Link_Charge_State
+            start_bit: 10
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - DEVICE_NUMBER:
+            start_bit: 4
+            length: 4
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 15
+            receivers:
+              - RC
+        - Error_Lamp:
+            enum: Error_Lamp
+            start_bit: 2
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+        - Device_State:
+            enum: Device_State
+            start_bit: 0
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - RC
+
+  - Setpoint_InvA_DCDC:
+      id: 0x18FF1380 # not present in FEAC0AA071A_PublicCAN.dbc (no 0x18FF03xx / 0x18FF1380 message); layout unverified
+      extended: true
+      dlc: 8
+      sender: RC
+      signals:
+        - Setpoint_DC_Link_Tolerance_DCDC:
+            start_bit: 8
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 4
+            offset: 0
+            min: 0
+            max: 1000
+            unit: "V"
+            receivers:
+              - InverterA
+        - Setpoint_DCDC_Voltage:
+            start_bit: 32
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.001
+            offset: 0
+            min: 0
+            max: 64.255
+            unit: "V"
+            receivers:
+              - InverterA
+        - Setpoint_DCDC_MaxCurrent:
+            start_bit: 48
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.05
+            offset: -1600
+            min: -1600
+            max: 1612.75
+            unit: "A"
+            receivers:
+              - InverterA
+        - PSU_Control:
+            enum: DCU_Control
+            start_bit: 0
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - InverterA
+
+  - Setpoint_Motor_RL:
+      id: 0x18FFE280 # MOBILE14_Setpoints_DCUB
+      extended: true
+      dlc: 8
+      sender: RC
+      signals:
+        - Setpoint_Torque:
+            start_bit: 48
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.2
+            offset: -6400
+            min: -6400
+            max: 6707
+            unit: "Nm"
+            receivers:
+              - InverterB
+        - Setpoint_Speed:
+            start_bit: 32
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -32000
+            min: -32000
+            max: 33535
+            unit: "RPM"
+            receivers:
+              - InverterB
+        - Setpoint_Generator_Power_Limit:
+            start_bit: 24
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 250
+            unit: "%"
+            receivers:
+              - InverterB
+        - Setpoint_Motor_Power_Limit:
+            start_bit: 16
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 250
+            unit: "%"
+            receivers:
+              - InverterB
+        - Setpoint_DC_Link_Tolerance:
+            start_bit: 8
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 4
+            offset: 0
+            min: 0
+            max: 1020
+            unit: "V"
+            receivers:
+              - InverterB
+        - DCU_Control:
+            enum: DCU_Control
+            start_bit: 0
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - InverterB
+
+  - Setpoint_Motor_RR:
+      id: 0x18FFE180 # MOBILE14_Setpoints_DCUA
+      extended: true
+      dlc: 8
+      sender: RC
+      signals:
+        - Setpoint_Torque:
+            start_bit: 48
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.2
+            offset: -6400
+            min: -6400
+            max: 6707
+            unit: "Nm"
+            receivers:
+              - InverterB
+        - Setpoint_Speed:
+            start_bit: 32
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -32000
+            min: -32000
+            max: 33535
+            unit: "RPM"
+            receivers:
+              - InverterB
+        - Setpoint_Generator_Power_Limit:
+            start_bit: 24
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 250
+            unit: "%"
+            receivers:
+              - InverterB
+        - Setpoint_Motor_Power_Limit:
+            start_bit: 16
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 250
+            unit: "%"
+            receivers:
+              - InverterB
+        - Setpoint_DC_Link_Tolerance:
+            start_bit: 8
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 4
+            offset: 0
+            min: 0
+            max: 1020
+            unit: "V"
+            receivers:
+              - InverterB
+        - DCU_Control:
+            enum: DCU_Control
+            start_bit: 0
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - InverterB
+
+  - Setpoint_Motor_FR:
+      id: 0x18FF1280 # MOBILE1_Setpoints_DCUB
+      extended: true
+      dlc: 8
+      sender: RC
+      signals:
+        - Setpoint_Torque:
+            start_bit: 48
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.2
+            offset: -6400
+            min: -6400
+            max: 6707
+            unit: "Nm"
+            receivers:
+              - InverterA
+        - Setpoint_Speed:
+            start_bit: 32
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -32000
+            min: -32000
+            max: 33535
+            unit: "RPM"
+            receivers:
+              - InverterA
+        - Setpoint_Generator_Power_Limit:
+            start_bit: 24
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 250
+            unit: "%"
+            receivers:
+              - InverterA
+        - Setpoint_Motor_Power_Limit:
+            start_bit: 16
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 250
+            unit: "%"
+            receivers:
+              - InverterA
+        - Setpoint_DC_Link_Tolerance:
+            start_bit: 8
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 4
+            offset: 0
+            min: 0
+            max: 1020
+            unit: "V"
+            receivers:
+              - InverterA
+        - DCU_Control:
+            enum: DCU_Control
+            start_bit: 0
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - InverterA
+
+  - Setpoint_Motor_FL:
+      id: 0x18FF1180 # MOBILE1_Setpoints_DCUA
+      extended: true
+      dlc: 8
+      sender: RC
+      signals:
+        - Setpoint_Torque:
+            start_bit: 48
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.2
+            offset: -6400
+            min: -6400
+            max: 6707
+            unit: "Nm"
+            receivers:
+              - InverterA
+        - Setpoint_Speed:
+            start_bit: 32
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: -32000
+            min: -32000
+            max: 33535
+            unit: "RPM"
+            receivers:
+              - InverterA
+        - Setpoint_Generator_Power_Limit:
+            start_bit: 24
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 250
+            unit: "%"
+            receivers:
+              - InverterA
+        - Setpoint_Motor_Power_Limit:
+            start_bit: 16
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 250
+            unit: "%"
+            receivers:
+              - InverterA
+        - Setpoint_DC_Link_Tolerance:
+            start_bit: 8
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 4
+            offset: 0
+            min: 0
+            max: 1020
+            unit: "V"
+            receivers:
+              - InverterA
+        - DCU_Control:
+            enum: DCU_Control
+            start_bit: 0
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - InverterA
+
+  - Master_Status:
+      id: 0x18FF1080 # MOBILE_SystemMessage
+      extended: true
+      dlc: 8
+      sender: RC
+      signals:
+        - Setpoint_Precharge_Voltage:
+            start_bit: 24
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 4
+            offset: 0
+            min: 0
+            max: 1020
+            unit: "V"
+            receivers:
+              - InverterA
+              - InverterB
+        - Setpoint_DC_Voltage:
+            start_bit: 8
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 4
+            offset: 0
+            min: 0
+            max: 1020
+            unit: "V"
+            receivers:
+              - InverterA
+              - InverterB
+        - Discharge_Enable:
+            enum: DCU_Control
+            start_bit: 4
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - InverterA
+              - InverterB
+        - Clamp15_CAN:
+            enum: DCU_Control
+            start_bit: 2
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - InverterA
+              - InverterB
+        - System_Enable:
+            enum: DCU_Control
+            start_bit: 0
+            length: 2
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 3
+            receivers:
+              - InverterA
+              - InverterB

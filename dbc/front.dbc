@@ -1,0 +1,131 @@
+VERSION ""
+
+NS_ :
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: FC RC Pump1 Pump2
+
+BO_ 24 RC_State: 2 RC
+ SG_ RC_Error : 8|8@1+ (1.0,0.0) [0.0|255.0] ""  FC
+ SG_ RC_State : 0|3@1+ (1.0,0.0) [0.0|7.0] ""  FC
+
+BO_ 117 RC_SDC_State: 1 RC
+ SG_ SDC_Point : 0|8@1+ (1.0,0.0) [0.0|255.0] ""  FC
+
+BO_ 513 FC_SDC_Takes: 8 FC
+ SG_ SDC_Point : 0|8@1+ (1.0,0.0) [0.0|255.0] ""  RC,WDAQ
+
+BO_ 261 DFU_Requested: 1 Flasher
+ SG_ DFU_Controller : 0|8@1+ (1.0,0.0) [0.0|4.0] ""  ACM,FC,RC,WDAQ
+
+BO_ 260 DFU_Ack: 0 Flasher
+
+BO_ 514 FC_SDC_BOTS: 3 FC
+ SG_ BOTS_Raw : 0|16@1+ (1.0,0.0) [0.0|65535.0] ""  RC
+ SG_ BOTS_Latched_Open : 16|1@1+ (1.0,0.0) [0.0|1.0] ""  RC
+
+BO_ 512 APPS: 4 FC
+ SG_ APPS_Implausible : 26|1@1+ (1.0,0.0) [0.0|1.0] ""  RC
+ SG_ Pedal_Travel : 16|10@1+ (0.1,0.0) [0.0|100.0] "%"  RC
+ SG_ APPS_Raw : 0|16@1+ (1.0,0.0) [0.0|65535.0] ""  RC
+
+BO_ 768 Dash_Input: 1 FC
+ SG_ Driver_Button : 2|1@1+ (1.0,0.0) [0.0|1.0] ""  RC
+ SG_ Dash_Button2 : 1|1@1+ (1.0,0.0) [0.0|1.0] ""  RC
+ SG_ Dash_Button1 : 0|1@1+ (1.0,0.0) [0.0|1.0] ""  RC
+
+BO_ 769 Mission_Dial: 1 FC
+ SG_ Mission_Dial_Position : 0|4@1+ (1.0,0.0) [0.0|8.0] ""  RC
+
+BO_ 1536 Steering: 2 FC
+ SG_ Steer_Angle_Raw : 0|16@1- (1.0,0.0) [0.0|0.0] ""  RC
+
+BO_ 256 damperpot: 4 FC
+ SG_ Damper_FR_RAW : 16|16@1- (1.0,0.0) [0.0|0.0] ""  RC
+ SG_ Damper_FL_RAW : 0|16@1- (1.0,0.0) [0.0|0.0] ""  RC
+
+BO_ 21 ACM_State: 1 ACM
+ SG_ ACM_Error : 0|8@1+ (1.0,0.0) [0.0|255.0] ""  RC
+
+BO_ 81 BMS_MaxCellVoltage: 4 RC
+ SG_ MaxCellVoltage : 0|16@1+ (0.0001,0.0) [0.0|6.5535] "V"  FC
+ SG_ MaxCell : 16|8@1+ (1.0,0.0) [0.0|138.0] ""  FC
+
+BO_ 80 BMS_MaxTemperature: 3 RC
+ SG_ MaxCellTemperature : 0|16@1+ (0.01,0.0) [0.0|100.0] "C"  FC
+ SG_ MaxCellIndex : 16|8@1+ (1.0,0.0) [0.0|138.0] ""  FC
+
+BO_ 257 Front_Brake_Pressure: 2 FC
+ SG_ Front_Brake_Pressure_Raw : 0|16@1+ (1.0,0.0) [0.0|65535.0] ""  RC
+
+BA_DEF_ BU_  "ECU" STRING ;
+BA_DEF_ BO_  "VFrameFormat" ENUM  "StandardCAN","ExtendedCAN";
+BA_DEF_  "BusType" STRING ;
+BA_DEF_  "MultiplexExtEnabled" ENUM  "No","Yes";
+BA_DEF_DEF_  "ECU" "";
+BA_DEF_DEF_  "VFrameFormat" "StandardCAN";
+BA_DEF_DEF_  "BusType" "CAN";
+BA_DEF_DEF_  "MultiplexExtEnabled" "No";
+
+BA_ "ECU" BU_ FC "FC";
+BA_ "ECU" BU_ RC "RC";
+BA_ "ECU" BU_ Pump1 "Pump1";
+BA_ "ECU" BU_ Pump2 "Pump2";
+
+VAL_ 24 RC_Error 1 "AMS_FAULT" 0 "NONE" ;
+VAL_ 24 RC_State 9 "AMS_FAULT" 8 "AS_FINISHED" 7 "AS_EMERGENCY" 6 "DISCHARGE" 5 "DRIVE" 4 "TS" 3 "EBS_CHECK" 2 "PRECHARGE" 1 "LV" 0 "LV_OFF" ;
+VAL_ 117 SDC_Point 17 "TSMS" 16 "CHARGING_INTERLOCK" 15 "HV_INTERLOCK" 14 "IMD_RELAY" 13 "BMS_RELAY" 12 "HVBB" 11 "FRONT_RIGHT_MOTOR_INTERLOCK" 10 "CSB" 9 "BOTS" 8 "FRONT_LEFT_MOTOR_INTERLOCK" 7 "FC_RELAY" 6 "INERTIA_SWITCH" 5 "RES" 4 "REAR_MOTOR_INTERLOCK" 3 "SDB" 2 "RC_RELAY" 1 "BSPD" 0 "CLOSED" ;
+VAL_ 513 SDC_Point 17 "TSMS" 16 "CHARGING_INTERLOCK" 15 "HV_INTERLOCK" 14 "IMD_RELAY" 13 "BMS_RELAY" 12 "HVBB" 11 "FRONT_RIGHT_MOTOR_INTERLOCK" 10 "CSB" 9 "BOTS" 8 "FRONT_LEFT_MOTOR_INTERLOCK" 7 "FC_RELAY" 6 "INERTIA_SWITCH" 5 "RES" 4 "REAR_MOTOR_INTERLOCK" 3 "SDB" 2 "RC_RELAY" 1 "BSPD" 0 "CLOSED" ;
+VAL_ 261 DFU_Controller 4 "WDAQ" 3 "RC" 2 "FC" 1 "ACM" 0 "INVALID" ;
+VAL_ 21 ACM_Error 17 "PCAN_WATCHDOG" 16 "ICAN_WATCHDOG" 15 "RCAN_WATCHDOG" 14 "PRECHARGE_FAILURE" 13 "SDC_AFTER_HVBB" 12 "SDC_AFTER_TSMS" 11 "SDC_AFTER_CHARGING_INTERLOCK" 10 "SDC_AFTER_HV_INTERLOCK" 9 "BMS_CELL_OPEN_WIRE" 8 "BMS_OVERTEMP" 7 "BMS_UNDERVOLT" 6 "BMS_OVERVOLT" 5 "IMD_ERROR" 4 "IMD_RESISTANCE_LOW" 3 "PRECHARGE_IMPLAUSIBILITY" 2 "AIRN_IMPLAUSIBILITY" 1 "AIRP_IMPLAUSIBILITY" 0 "NONE" ;
+
+VAL_TABLE_ GPS_FilterMode 3 "WithGNSS" 1 "Coasting" 0 "NoGNSS" ;
+VAL_TABLE_ GPS_Error 42 "BufferOverflow" 41 "DataOverflow" 40 "DeviceError" 33 "InvalidParameter" 32 "BaudrateOutOfRange" 30 "TimerOverflow" 4 "MessageSentInvalid" 3 "PeriodSentOutOfRange" ;
+VAL_TABLE_ RTK_Status 2 "RTK_FIXED" 1 "RTK_FLOATING" 0 "NO_RTK" ;
+VAL_TABLE_ DFU_Controller 4 "WDAQ" 3 "RC" 2 "FC" 1 "ACM" 0 "INVALID" ;
+VAL_TABLE_ SDC_Point 17 "TSMS" 16 "CHARGING_INTERLOCK" 15 "HV_INTERLOCK" 14 "IMD_RELAY" 13 "BMS_RELAY" 12 "HVBB" 11 "FRONT_RIGHT_MOTOR_INTERLOCK" 10 "CSB" 9 "BOTS" 8 "FRONT_LEFT_MOTOR_INTERLOCK" 7 "FC_RELAY" 6 "INERTIA_SWITCH" 5 "RES" 4 "REAR_MOTOR_INTERLOCK" 3 "SDB" 2 "RC_RELAY" 1 "BSPD" 0 "CLOSED" ;
+VAL_TABLE_ RES_Status 1 "Enabled" 0 "Disabled" ;
+VAL_TABLE_ RES_Requested_State 128 "Reset" 1 "Operational" ;
+VAL_TABLE_ RES_Node_ID 17 "Node_ID_11" 0 "All" ;
+VAL_TABLE_ ACM_Error 17 "PCAN_WATCHDOG" 16 "ICAN_WATCHDOG" 15 "RCAN_WATCHDOG" 14 "PRECHARGE_FAILURE" 13 "SDC_AFTER_HVBB" 12 "SDC_AFTER_TSMS" 11 "SDC_AFTER_CHARGING_INTERLOCK" 10 "SDC_AFTER_HV_INTERLOCK" 9 "BMS_CELL_OPEN_WIRE" 8 "BMS_OVERTEMP" 7 "BMS_UNDERVOLT" 6 "BMS_OVERVOLT" 5 "IMD_ERROR" 4 "IMD_RESISTANCE_LOW" 3 "PRECHARGE_IMPLAUSIBILITY" 2 "AIRN_IMPLAUSIBILITY" 1 "AIRP_IMPLAUSIBILITY" 0 "NONE" ;
+VAL_TABLE_ RC_State 9 "AMS_FAULT" 8 "AS_FINISHED" 7 "AS_EMERGENCY" 6 "DISCHARGE" 5 "DRIVE" 4 "TS" 3 "EBS_CHECK" 2 "PRECHARGE" 1 "LV" 0 "LV_OFF" ;
+VAL_TABLE_ RC_Error 1 "AMS_FAULT" 0 "NONE" ;
+VAL_TABLE_ InverterStatus 3 "NO_DATA" 2 "RESERVED" 1 "POWER_SECTION_ENABLED" 0 "POWER_SECTION_INHIBITED" ;
+VAL_TABLE_ InverterReady 3 "NO_DATA" 2 "RESERVED" 1 "READY" 0 "NOT_READY" ;
+VAL_TABLE_ InverterErrorStatus 3 "NO_DATA" 2 "WARNING" 1 "ERROR" 0 "NO_ERROR" ;
+VAL_TABLE_ InverterLimitationStatus 3 "NO_DATA" 2 "RESERVED" 1 "LIMIT_ACTIVE" 0 "NO_LIMIT_ACTIVE" ;
+VAL_TABLE_ InverterEnabledDisabled 3 "NO_DATA" 2 "RESERVED" 1 "ENABLED" 0 "DISABLED" ;
+VAL_TABLE_ DC_Link_Charge_State 3 "No_Data" 2 "Discharge_Complete" 1 "Precharge_Complete" 0 "Precharge_Not_Complete" ;
+VAL_TABLE_ Error_Lamp 3 "No_Data" 2 "RESERVED" 1 "On" 0 "Off" ;
+VAL_TABLE_ Device_State 3 "No_Data" 2 "RESERVED" 1 "Initialization_Active" 0 "Initialization_Complete" ;
+VAL_TABLE_ Clamp15_Status 3 "NO_DATA" 2 "RESERVED" 1 "ENABLED" 0 "DISABLED" ;
+VAL_TABLE_ DCU_Control 3 "NO_DATA" 2 "RESERVED" 1 "ENABLE" 0 "DISABLE" ;

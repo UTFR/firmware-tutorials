@@ -1,0 +1,153 @@
+enums:
+  GPS_FilterMode:
+    0: "NoGNSS"
+    1: "Coasting"
+    3: "WithGNSS"
+  GPS_Error:
+    3: "PeriodSentOutOfRange"
+    4: "MessageSentInvalid"
+    30: "TimerOverflow"
+    32: "BaudrateOutOfRange"
+    33: "InvalidParameter"
+    40: "DeviceError"
+    41: "DataOverflow"
+    42: "BufferOverflow"
+  RTK_Status:
+    0: "NO_RTK"
+    1: "RTK_FLOATING"
+    2: "RTK_FIXED"
+
+  DFU_Controller:
+    0: INVALID
+    1: ACM
+    2: FC
+    3: RC
+    4: WDAQ
+
+  SDC_Point:
+    0:  "CLOSED"
+    1:  "BSPD"
+    2:  "RC_RELAY"
+    3:  "SDB"
+    4:  "REAR_MOTOR_INTERLOCK"
+    5:  "RES"
+    6:  "INERTIA_SWITCH"
+    7:  "FC_RELAY"
+    8:  "FRONT_LEFT_MOTOR_INTERLOCK"
+    9:  "BOTS"
+    10: "CSB"
+    11: "FRONT_RIGHT_MOTOR_INTERLOCK"
+    12: "HVBB"
+    13: "BMS_RELAY"
+    14: "IMD_RELAY"
+    15: "HV_INTERLOCK"
+    16: "CHARGING_INTERLOCK"
+    17: "TSMS"
+
+  RES_Status:
+    0: "Disabled"
+    1: "Enabled"
+
+  RES_Requested_State:
+    1:   "Operational"
+    128: "Reset"
+
+  RES_Node_ID:
+    0:  "All"
+    17: "Node_ID_11"
+
+  ACM_Error:
+    0:  "NONE"
+    1:  "AIRP_IMPLAUSIBILITY"
+    2:  "AIRN_IMPLAUSIBILITY"
+    3:  "PRECHARGE_IMPLAUSIBILITY"
+    4:  "IMD_RESISTANCE_LOW"
+    5:  "IMD_ERROR"
+    6:  "BMS_OVERVOLT"
+    7:  "BMS_UNDERVOLT"
+    8:  "BMS_OVERTEMP"
+    9:  "BMS_CELL_OPEN_WIRE"
+    10:  "SDC_AFTER_HV_INTERLOCK"
+    11:  "SDC_AFTER_CHARGING_INTERLOCK"
+    12:  "SDC_AFTER_TSMS"
+    13: "SDC_AFTER_HVBB"
+    14: "PRECHARGE_FAILURE"
+    15: "RCAN_WATCHDOG"
+    16: "ICAN_WATCHDOG"
+    17: "PCAN_WATCHDOG"
+
+  RC_State:
+    0: "LV_OFF"
+    1: "LV"
+    2: "PRECHARGE"
+    3: "EBS_CHECK"
+    4: "TS"
+    5: "DRIVE"
+    6: "DISCHARGE"
+    7: "AS_EMERGENCY"
+    8: "AS_FINISHED"
+    9: AMS_FAULT
+
+  RC_Error:
+    0: "NONE"
+    1: "AMS_FAULT"
+
+  InverterStatus:
+    0: "POWER_SECTION_INHIBITED"
+    1: "POWER_SECTION_ENABLED"
+    2: "RESERVED"
+    3: "NO_DATA"
+
+  InverterReady:
+    0: "NOT_READY"
+    1: "READY"
+    2: "RESERVED"
+    3: "NO_DATA"
+
+  InverterErrorStatus:
+    0: "NO_ERROR"
+    1: "ERROR"
+    2: "WARNING"
+    3: "NO_DATA"
+
+  InverterLimitationStatus:
+    0: "NO_LIMIT_ACTIVE"
+    1: "LIMIT_ACTIVE"
+    2: "RESERVED"
+    3: "NO_DATA"
+
+  InverterEnabledDisabled:
+    0: "DISABLED"
+    1: "ENABLED"
+    2: "RESERVED"
+    3: "NO_DATA"
+
+  DC_Link_Charge_State:
+    0: "Precharge_Not_Complete"
+    1: "Precharge_Complete"
+    2: "Discharge_Complete"
+    3: "No_Data"
+
+  Error_Lamp:
+    0: "Off"
+    1: "On"
+    2: "RESERVED"
+    3: "No_Data"
+
+  Device_State:
+    0: "Initialization_Complete"
+    1: "Initialization_Active"
+    2: "RESERVED"
+    3: "No_Data"
+
+  Clamp15_Status:
+    0: "DISABLED"
+    1: "ENABLED"
+    2: "RESERVED"
+    3: "NO_DATA"
+
+  DCU_Control:
+    0: "DISABLE"
+    1: "ENABLE"
+    2: "RESERVED"
+    3: "NO_DATA"

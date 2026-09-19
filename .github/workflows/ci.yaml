@@ -1,0 +1,85 @@
+name: CI
+
+# Single workflow run per push / PR. Format check runs first and gates the
+# build job, so a formatting failure fails fast instead of burning runner
+# minutes on a firmware build. Mirrors the real firmware repo's CI
+# (github.com/UTFR/firmware), trimmed to what this tree actually has: no
+# Docker image, no host-test preset, no per-PR size report.
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install clang-format
+        run: python3 -m pip install clang-format
+
+      # Scoped to files a change touches, not the whole tree, and skipping
+      # vendored code -- that stays diffable against upstream rather than
+      # reformatted.
+      - name: Determine changed files
+        id: changed
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+
+          # New branch / unknown base: fall back to the merge-base with main.
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            BASE=$(git merge-base origin/main HEAD || git rev-parse HEAD~1)
+          fi
+
+          echo "Comparing against $BASE"
+          git diff --name-only --diff-filter=ACMR "$BASE" HEAD \
+            -- '*.c' '*.h' \
+            | grep -vE '^(common/(CMSIS|FreeRTOS|STM32G4xx_HAL)/|config/)' \
+            > changed.txt || true
+
+          echo "count=$(wc -l < changed.txt)" >> "$GITHUB_OUTPUT"
+          echo "Files to check:"
+          cat changed.txt
+
+      - name: Check formatting
+        if: steps.changed.outputs.count != '0'
+        run: xargs -r -a changed.txt clang-format --dry-run --Werror --style=file
+
+  build:
+    needs: format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cmake gcc-arm-none-eabi clang-format
+          python3 -m pip install --break-system-packages -r scripts/requirements.txt
+
+      - name: Configure
+        run: cmake --preset firmware
+
+      - name: Build
+        run: cmake --build --preset firmware
+
+      - name: Upload Artifacts
+        if: failure() || github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            build/firmware/**/*.elf
+          retention-days: 3

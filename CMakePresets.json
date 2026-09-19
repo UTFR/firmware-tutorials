@@ -1,0 +1,31 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 22,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}"
+        },
+        {
+            "name": "firmware",
+            "inherits": "base",
+            "displayName": "Firmware (STM32)",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "firmware",
+            "displayName": "Firmware (STM32)",
+            "configurePreset": "firmware"
+        }
+    ]
+}

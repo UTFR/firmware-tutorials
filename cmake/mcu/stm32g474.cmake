@@ -1,0 +1,11 @@
+set(MCU_ARCH             cortex-m4f)
+set(MCU_FAMILY           stm32g4)
+set(MCU_HAL_DIR          ${CMAKE_SOURCE_DIR}/common/STM32G4xx_HAL)
+set(MCU_HAL_CONF_IN      ${CMAKE_SOURCE_DIR}/config/hal/stm32g4xx_hal_conf.h.in)
+set(MCU_CMSIS_DEVICE     ${CMAKE_SOURCE_DIR}/common/CMSIS/device/ST/STM32G4xx/include)
+set(MCU_DEFINES          USE_HAL_DRIVER STM32G474xx UTFR_MCU_FAMILY_G4)
+set(MCU_FLASH_SIZE       524288)
+set(MCU_RAM_SIZE         131072)
+set(MCU_RAM_START        0x20000000)   # SRAM1+SRAM2, contiguous from here
+set(MCU_FLASH_PAGE_SIZE  2048)
+set(MCU_OPENOCD_TARGET   stm32g4x)

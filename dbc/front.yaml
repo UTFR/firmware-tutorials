@@ -1,0 +1,409 @@
+nodes:
+  - FC
+  - RC
+  - Pump1
+  - Pump2
+
+messages:
+  - RC_State:
+      id: 0x18
+      dlc: 2
+      sender: RC
+      signals:
+        - RC_Error:
+            enum: RC_Error
+            start_bit: 8
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 255
+            receivers:
+              - FC
+        - RC_State:
+            enum: RC_State
+            start_bit: 0
+            length: 3
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 7
+            receivers:
+              - FC
+
+  - RC_SDC_State:
+      id: 0x75
+      dlc: 1
+      sender: RC
+      signals:
+        - SDC_Point:
+            enum: SDC_Point
+            start_bit: 0
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 255
+            receivers:
+              - FC
+
+  - FC_SDC_Takes:
+      id: 0x201
+      dlc: 8
+      sender: FC
+      signals:
+        - SDC_Point:
+            enum: SDC_Point
+            start_bit: 0
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 255
+            receivers:
+              - RC
+              - WDAQ
+
+        # - SDC_After_FL_Motor_Raw:
+        #     start_bit: 0
+        #     length: 16
+        #     endianness: "little"
+        #     signed: false
+        #     scale: 1
+        #     offset: 0
+        #     min: 0
+        #     max: 65535
+        #     receivers:
+        #       - RC
+        # - SDC_After_Inertia_Raw:
+        #     start_bit: 16
+        #     length: 16
+        #     endianness: "little"
+        #     signed: false
+        #     scale: 1
+        #     offset: 0
+        #     min: 0
+        #     max: 65535
+        #     receivers:
+        #       - RC
+        # - SDC_After_CSB_Raw:
+        #     start_bit: 32
+        #     length: 16
+        #     endianness: "little"
+        #     signed: false
+        #     scale: 1
+        #     offset: 0
+        #     min: 0
+        #     max: 65535
+        #     receivers:
+        #       - RC
+        # - SDC_After_FR_Motor_Raw:
+        #     start_bit: 48
+        #     length: 16
+        #     endianness: "little"
+        #     signed: false
+        #     scale: 1
+        #     offset: 0
+        #     min: 0
+        #     max: 65535
+        #     receivers:
+        #       - RC
+
+  - DFU_Requested:
+      id: 0x105
+      dlc: 1
+      sender: Flasher
+      signals:
+        - DFU_Controller:
+            enum: DFU_Controller
+            start_bit: 0
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 4
+            receivers:
+              - ACM
+              - FC
+              - RC
+              - WDAQ
+
+  - DFU_Ack:
+      id: 0x104
+      dlc: 0
+      sender: Flasher
+      signals: []
+
+  - FC_SDC_BOTS:
+      id: 0x202
+      dlc: 3
+      sender: FC
+      signals:
+        - BOTS_Raw:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 65535
+            receivers:
+              - RC
+        - BOTS_Latched_Open:
+            start_bit: 16
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            receivers:
+              - RC
+
+  - APPS:
+      id: 0x200
+      dlc: 4
+      sender: FC
+      signals:
+        - APPS_Implausible:
+            start_bit: 26
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            receivers:
+              - RC
+        - Pedal_Travel:
+            start_bit: 16
+            length: 10
+            endianness: "little"
+            signed: false
+            scale: 0.1
+            offset: 0
+            min: 0
+            max: 100
+            unit: "%"
+            receivers:
+              - RC
+        - APPS_Raw:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 65535
+            receivers:
+              - RC
+
+  - Dash_Input:
+      id: 0x300
+      dlc: 1
+      sender: FC
+      signals:
+        - Driver_Button:
+            start_bit: 2
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            receivers:
+              - RC
+        - Dash_Button2:
+            start_bit: 1
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            receivers:
+              - RC
+        - Dash_Button1:
+            start_bit: 0
+            length: 1
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 1
+            receivers:
+              - RC
+
+  - Mission_Dial:
+      id: 0x301
+      dlc: 1
+      sender: FC
+      signals:
+        - Mission_Dial_Position:
+            start_bit: 0
+            length: 4
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 8
+            receivers:
+              - RC
+
+  - Steering:
+      id: 0x600
+      dlc: 2
+      sender: FC
+      signals:
+        - Steer_Angle_Raw:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 1
+            offset: 0
+            min: 0
+            max: 0
+            receivers:
+              - RC
+
+  - damperpot:
+      id: 0x100
+      dlc: 4
+      sender: FC
+      signals:
+        - Damper_FR_RAW:
+            start_bit: 16
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 1
+            offset: 0
+            min: 0
+            max: 0
+            receivers:
+              - RC
+        - Damper_FL_RAW:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: true
+            scale: 1
+            offset: 0
+            min: 0
+            max: 0
+            receivers:
+              - RC
+
+  - ACM_State:
+      id: 0x15
+      dlc: 1
+      sender: ACM
+      signals:
+        - ACM_Error:
+            enum: ACM_Error
+            start_bit: 0
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 255
+            receivers:
+              - RC
+
+  - BMS_MaxCellVoltage:
+      id: 0x51
+      dlc: 4
+      sender: RC
+      signals:
+        - MaxCellVoltage:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.0001
+            offset: 0
+            min: 0
+            max: 6.5535
+            unit: "V"
+            receivers:
+              - FC
+        - MaxCell:
+            start_bit: 16
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 138
+            unit: ""
+            receivers:
+              - FC
+
+  - BMS_MaxTemperature:
+      id: 0x50
+      dlc: 3
+      sender: RC
+      signals:
+        - MaxCellTemperature:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 0.01
+            offset: 0
+            min: 0
+            max: 100 
+            unit: "C"
+            receivers:
+              - FC
+        - MaxCellIndex:
+            start_bit: 16
+            length: 8
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 138 
+            unit: ""
+            receivers:
+              - FC
+
+  - Front_Brake_Pressure:
+      id: 0x101
+      dlc: 2
+      sender: FC
+      signals:
+        - Front_Brake_Pressure_Raw:
+            start_bit: 0
+            length: 16
+            endianness: "little"
+            signed: false
+            scale: 1
+            offset: 0
+            min: 0
+            max: 65535
+            receivers:
+              - RC

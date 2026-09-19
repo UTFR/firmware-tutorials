@@ -1,0 +1,7 @@
+set(BOARD_NAME    INTRO_PROJECT)
+set(BOARD_KIND    APP)
+set(BOARD_MCU     stm32g474)
+set(BOARD_CONFIG_DIR ${CMAKE_CURRENT_LIST_DIR}/include/hal)
+set(BOARD_RTOS    ON)
+set(BOARD_MODULES adc cortex dma exti fdcan flash gpio pwr rcc spi tim uart)
+set(BOARD_LIBS    UTFR_BOOT_UTILS UTFR_UART UTFR_CAN UTFR_DIGITAL UTFR_LOGGING)

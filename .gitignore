@@ -1,5 +1,8 @@
-.pio
+build/
 .vscode/
 compile_commands.json
+__pycache__/
+.DS_Store
 .cache/
-index/
+scripts/.venv/
+*.log

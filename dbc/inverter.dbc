@@ -1,0 +1,254 @@
+VERSION ""
+
+NS_ :
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: ACM InverterA InverterB RC Jetson
+
+BO_ 2566849527 InvB_ActualValues_Onboard_Converter: 8 InverterB
+ SG_ Actual_Voltage : 8|16@1+ (0.001,0.0) [0.0|64.255] "V"  RC
+ SG_ Actual_Temperature : 56|8@1+ (1.0,-40.0) [-40.0|210.0] "C"  RC
+ SG_ Actual_Power : 40|16@1+ (0.005,-160.0) [-160.0|161.275] "kW"  RC
+ SG_ Actual_InverterStatus : 0|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Actual_InverterReady : 2|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Actual_ErrorStatus : 4|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Actual_Current : 24|16@1+ (0.05,-1600.0) [-1600.0|1612.75] "A"  RC
+
+BO_ 2566849514 InvA_ActualValues_Onboard_Converter: 8 InverterA
+ SG_ Actual_Temperature : 56|8@1+ (1.0,-40.0) [-40.0|210.0] "C"  RC
+ SG_ Actual_Power : 40|16@1+ (0.005,-160.0) [-160.0|161.275] "kW"  RC
+ SG_ Actual_Current : 24|16@1+ (0.05,-1600.0) [-1600.0|1612.75] "A"  RC
+ SG_ Actual_Voltage : 8|16@1+ (0.001,0.0) [0.0|64.255] "V"  RC
+ SG_ Actual_ErrorStatus : 4|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Actual_InverterReady : 2|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Actual_InverterStatus : 0|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+
+BO_ 2566849271 InvB_ActualValues_Motor_RL: 8 InverterB
+ SG_ Actual_MotorTemperature : 56|8@1+ (1.0,-40.0) [-40.0|215.0] "C"  RC
+ SG_ Actual_Power : 40|16@1+ (0.005,-160.0) [-160.0|167.675] "kW"  RC
+ SG_ Actual_Torque : 24|16@1+ (0.2,-6400.0) [-6400.0|6707.0] "Nm"  RC
+ SG_ Actual_Speed : 8|16@1+ (1.0,-32000.0) [-32000.0|33535.0] "RPM"  RC
+ SG_ Actual_ErrorStatus : 4|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Actual_Limitation_Status : 6|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Actual_InverterReady : 2|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Actual_InverterStatus : 0|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+
+BO_ 2566849258 InvA_ActualValues_Motor_FR: 8 InverterA
+ SG_ Actual_MotorTemperature : 56|8@1+ (1.0,-40.0) [-40.0|215.0] "C"  RC
+ SG_ Actual_Power : 40|16@1+ (0.005,-160.0) [-160.0|167.675] "kW"  RC
+ SG_ Actual_Torque : 24|16@1+ (0.2,-6400.0) [-6400.0|6707.0] "Nm"  RC
+ SG_ Actual_Speed : 8|16@1+ (1.0,-32000.0) [-32000.0|33535.0] "RPM"  RC
+ SG_ Actual_ErrorStatus : 4|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Actual_Limitation_Status : 6|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Actual_InverterReady : 2|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Actual_InverterStatus : 0|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+
+BO_ 2566849015 InvB_ActualValues_Motor_RR: 8 InverterB
+ SG_ Actual_MotorTemperature : 56|8@1+ (1.0,-40.0) [-40.0|215.0] "C"  RC
+ SG_ Actual_Power : 40|16@1+ (0.005,-160.0) [-160.0|167.675] "kW"  RC
+ SG_ Actual_Torque : 24|16@1+ (0.2,-6400.0) [-6400.0|6707.0] "Nm"  RC
+ SG_ Actual_Speed : 8|16@1+ (1.0,-32000.0) [-32000.0|33535.0] "RPM"  RC
+ SG_ Actual_ErrorStatus : 4|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Actual_Limitation_Status : 6|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Actual_InverterReady : 2|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Actual_InverterStatus : 0|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+
+BO_ 2566849002 InvA_ActualValues_Motor_FL: 8 InverterA
+ SG_ Actual_MotorTemperature : 56|8@1+ (1.0,-40.0) [-40.0|215.0] "C"  RC
+ SG_ Actual_Power : 40|16@1+ (0.005,-160.0) [-160.0|167.675] "kW"  RC
+ SG_ Actual_Torque : 24|16@1+ (0.2,-6400.0) [-6400.0|6707.0] "Nm"  RC
+ SG_ Actual_Speed : 8|16@1+ (1.0,-32000.0) [-32000.0|33535.0] "RPM"  RC
+ SG_ Actual_ErrorStatus : 4|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Actual_Limitation_Status : 6|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Actual_InverterReady : 2|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Actual_InverterStatus : 0|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+
+BO_ 2566848759 InvB_Status: 8 InverterB
+ SG_ Actual_Device_Temperature : 56|8@1+ (1.0,-40.0) [-40.0|215.0] "C"  RC
+ SG_ Actual_DC_Bus_Power : 40|16@1+ (0.005,-160.0) [-160.0|167.675] "kW"  RC
+ SG_ Clamp15_Status : 8|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Actual_DC_Bus_Voltage : 32|8@1+ (4.0,0.0) [0.0|1020.0] "V"  RC
+ SG_ Error_Code : 16|16@1+ (1.0,0.0) [0.0|65535.0] ""  RC
+ SG_ Flex2 : 14|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Flex1 : 12|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ DC_Link_Charge_State : 10|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ DEVICE_NUMBER : 4|4@1+ (1.0,0.0) [0.0|15.0] ""  RC
+ SG_ Error_Lamp : 2|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Device_State : 0|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+
+BO_ 2566848746 InvA_Status: 8 InverterA
+ SG_ Actual_Device_Temperature : 56|8@1+ (1.0,-40.0) [-40.0|215.0] "C"  RC
+ SG_ Actual_DC_Bus_Power : 40|16@1+ (0.005,-160.0) [-160.0|167.675] "kW"  RC
+ SG_ Clamp15_Status : 8|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Actual_DC_Bus_Voltage : 32|8@1+ (4.0,0.0) [0.0|1020.0] "V"  RC
+ SG_ Error_Code : 16|16@1+ (1.0,0.0) [0.0|65535.0] ""  RC
+ SG_ Flex2 : 14|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Flex1 : 12|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ DC_Link_Charge_State : 10|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ DEVICE_NUMBER : 4|4@1+ (1.0,0.0) [0.0|15.0] ""  RC
+ SG_ Error_Lamp : 2|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+ SG_ Device_State : 0|2@1+ (1.0,0.0) [0.0|3.0] ""  RC
+
+BO_ 2566853504 Setpoint_InvA_DCDC: 8 RC
+ SG_ Setpoint_DC_Link_Tolerance_DCDC : 8|8@1+ (4.0,0.0) [0.0|1000.0] "V"  InverterA
+ SG_ Setpoint_DCDC_Voltage : 32|16@1+ (0.001,0.0) [0.0|64.255] "V"  InverterA
+ SG_ Setpoint_DCDC_MaxCurrent : 48|16@1+ (0.05,-1600.0) [-1600.0|1612.75] "A"  InverterA
+ SG_ PSU_Control : 0|2@1+ (1.0,0.0) [0.0|3.0] ""  InverterA
+
+BO_ 2566906496 Setpoint_Motor_RL: 8 RC
+ SG_ Setpoint_Torque : 48|16@1+ (0.2,-6400.0) [-6400.0|6707.0] "Nm"  InverterB
+ SG_ Setpoint_Speed : 32|16@1+ (1.0,-32000.0) [-32000.0|33535.0] "RPM"  InverterB
+ SG_ Setpoint_Generator_Power_Limit : 24|8@1+ (1.0,0.0) [0.0|250.0] "%"  InverterB
+ SG_ Setpoint_Motor_Power_Limit : 16|8@1+ (1.0,0.0) [0.0|250.0] "%"  InverterB
+ SG_ Setpoint_DC_Link_Tolerance : 8|8@1+ (4.0,0.0) [0.0|1020.0] "V"  InverterB
+ SG_ DCU_Control : 0|2@1+ (1.0,0.0) [0.0|3.0] ""  InverterB
+
+BO_ 2566906240 Setpoint_Motor_RR: 8 RC
+ SG_ Setpoint_Torque : 48|16@1+ (0.2,-6400.0) [-6400.0|6707.0] "Nm"  InverterB
+ SG_ Setpoint_Speed : 32|16@1+ (1.0,-32000.0) [-32000.0|33535.0] "RPM"  InverterB
+ SG_ Setpoint_Generator_Power_Limit : 24|8@1+ (1.0,0.0) [0.0|250.0] "%"  InverterB
+ SG_ Setpoint_Motor_Power_Limit : 16|8@1+ (1.0,0.0) [0.0|250.0] "%"  InverterB
+ SG_ Setpoint_DC_Link_Tolerance : 8|8@1+ (4.0,0.0) [0.0|1020.0] "V"  InverterB
+ SG_ DCU_Control : 0|2@1+ (1.0,0.0) [0.0|3.0] ""  InverterB
+
+BO_ 2566853248 Setpoint_Motor_FR: 8 RC
+ SG_ Setpoint_Torque : 48|16@1+ (0.2,-6400.0) [-6400.0|6707.0] "Nm"  InverterA
+ SG_ Setpoint_Speed : 32|16@1+ (1.0,-32000.0) [-32000.0|33535.0] "RPM"  InverterA
+ SG_ Setpoint_Generator_Power_Limit : 24|8@1+ (1.0,0.0) [0.0|250.0] "%"  InverterA
+ SG_ Setpoint_Motor_Power_Limit : 16|8@1+ (1.0,0.0) [0.0|250.0] "%"  InverterA
+ SG_ Setpoint_DC_Link_Tolerance : 8|8@1+ (4.0,0.0) [0.0|1020.0] "V"  InverterA
+ SG_ DCU_Control : 0|2@1+ (1.0,0.0) [0.0|3.0] ""  InverterA
+
+BO_ 2566852992 Setpoint_Motor_FL: 8 RC
+ SG_ Setpoint_Torque : 48|16@1+ (0.2,-6400.0) [-6400.0|6707.0] "Nm"  InverterA
+ SG_ Setpoint_Speed : 32|16@1+ (1.0,-32000.0) [-32000.0|33535.0] "RPM"  InverterA
+ SG_ Setpoint_Generator_Power_Limit : 24|8@1+ (1.0,0.0) [0.0|250.0] "%"  InverterA
+ SG_ Setpoint_Motor_Power_Limit : 16|8@1+ (1.0,0.0) [0.0|250.0] "%"  InverterA
+ SG_ Setpoint_DC_Link_Tolerance : 8|8@1+ (4.0,0.0) [0.0|1020.0] "V"  InverterA
+ SG_ DCU_Control : 0|2@1+ (1.0,0.0) [0.0|3.0] ""  InverterA
+
+BO_ 2566852736 Master_Status: 8 RC
+ SG_ Setpoint_Precharge_Voltage : 24|8@1+ (4.0,0.0) [0.0|1020.0] "V"  InverterA,InverterB
+ SG_ Setpoint_DC_Voltage : 8|8@1+ (4.0,0.0) [0.0|1020.0] "V"  InverterA,InverterB
+ SG_ Discharge_Enable : 4|2@1+ (1.0,0.0) [0.0|3.0] ""  InverterA,InverterB
+ SG_ Clamp15_CAN : 2|2@1+ (1.0,0.0) [0.0|3.0] ""  InverterA,InverterB
+ SG_ System_Enable : 0|2@1+ (1.0,0.0) [0.0|3.0] ""  InverterA,InverterB
+
+BA_DEF_ BU_  "ECU" STRING ;
+BA_DEF_ BO_  "VFrameFormat" ENUM  "StandardCAN","ExtendedCAN";
+BA_DEF_  "BusType" STRING ;
+BA_DEF_  "MultiplexExtEnabled" ENUM  "No","Yes";
+BA_DEF_DEF_  "ECU" "";
+BA_DEF_DEF_  "VFrameFormat" "StandardCAN";
+BA_DEF_DEF_  "BusType" "CAN";
+BA_DEF_DEF_  "MultiplexExtEnabled" "No";
+
+BA_ "ECU" BU_ ACM "ACM";
+BA_ "ECU" BU_ InverterA "InverterA";
+BA_ "ECU" BU_ InverterB "InverterB";
+BA_ "ECU" BU_ RC "RC";
+BA_ "ECU" BU_ Jetson "Jetson";
+BA_ "VFrameFormat" BO_ 2566849527 1;
+BA_ "VFrameFormat" BO_ 2566849514 1;
+BA_ "VFrameFormat" BO_ 2566849271 1;
+BA_ "VFrameFormat" BO_ 2566849258 1;
+BA_ "VFrameFormat" BO_ 2566849015 1;
+BA_ "VFrameFormat" BO_ 2566849002 1;
+BA_ "VFrameFormat" BO_ 2566848759 1;
+BA_ "VFrameFormat" BO_ 2566848746 1;
+BA_ "VFrameFormat" BO_ 2566853504 1;
+BA_ "VFrameFormat" BO_ 2566906496 1;
+BA_ "VFrameFormat" BO_ 2566906240 1;
+BA_ "VFrameFormat" BO_ 2566853248 1;
+BA_ "VFrameFormat" BO_ 2566852992 1;
+BA_ "VFrameFormat" BO_ 2566852736 1;
+
+VAL_ 2566849527 Actual_InverterStatus 3 "NO_DATA" 2 "RESERVED" 1 "POWER_SECTION_ENABLED" 0 "POWER_SECTION_INHIBITED" ;
+VAL_ 2566849527 Actual_InverterReady 3 "NO_DATA" 2 "RESERVED" 1 "READY" 0 "NOT_READY" ;
+VAL_ 2566849527 Actual_ErrorStatus 3 "NO_DATA" 2 "WARNING" 1 "ERROR" 0 "NO_ERROR" ;
+VAL_ 2566849514 Actual_ErrorStatus 3 "NO_DATA" 2 "WARNING" 1 "ERROR" 0 "NO_ERROR" ;
+VAL_ 2566849514 Actual_InverterReady 3 "NO_DATA" 2 "RESERVED" 1 "READY" 0 "NOT_READY" ;
+VAL_ 2566849514 Actual_InverterStatus 3 "NO_DATA" 2 "RESERVED" 1 "POWER_SECTION_ENABLED" 0 "POWER_SECTION_INHIBITED" ;
+VAL_ 2566849271 Actual_ErrorStatus 3 "NO_DATA" 2 "WARNING" 1 "ERROR" 0 "NO_ERROR" ;
+VAL_ 2566849271 Actual_Limitation_Status 3 "NO_DATA" 2 "RESERVED" 1 "LIMIT_ACTIVE" 0 "NO_LIMIT_ACTIVE" ;
+VAL_ 2566849271 Actual_InverterReady 3 "NO_DATA" 2 "RESERVED" 1 "READY" 0 "NOT_READY" ;
+VAL_ 2566849271 Actual_InverterStatus 3 "NO_DATA" 2 "RESERVED" 1 "POWER_SECTION_ENABLED" 0 "POWER_SECTION_INHIBITED" ;
+VAL_ 2566849258 Actual_ErrorStatus 3 "NO_DATA" 2 "WARNING" 1 "ERROR" 0 "NO_ERROR" ;
+VAL_ 2566849258 Actual_Limitation_Status 3 "NO_DATA" 2 "RESERVED" 1 "LIMIT_ACTIVE" 0 "NO_LIMIT_ACTIVE" ;
+VAL_ 2566849258 Actual_InverterReady 3 "NO_DATA" 2 "RESERVED" 1 "READY" 0 "NOT_READY" ;
+VAL_ 2566849258 Actual_InverterStatus 3 "NO_DATA" 2 "RESERVED" 1 "POWER_SECTION_ENABLED" 0 "POWER_SECTION_INHIBITED" ;
+VAL_ 2566849015 Actual_ErrorStatus 3 "NO_DATA" 2 "WARNING" 1 "ERROR" 0 "NO_ERROR" ;
+VAL_ 2566849015 Actual_Limitation_Status 3 "NO_DATA" 2 "RESERVED" 1 "LIMIT_ACTIVE" 0 "NO_LIMIT_ACTIVE" ;
+VAL_ 2566849015 Actual_InverterReady 3 "NO_DATA" 2 "RESERVED" 1 "READY" 0 "NOT_READY" ;
+VAL_ 2566849015 Actual_InverterStatus 3 "NO_DATA" 2 "RESERVED" 1 "POWER_SECTION_ENABLED" 0 "POWER_SECTION_INHIBITED" ;
+VAL_ 2566849002 Actual_ErrorStatus 3 "NO_DATA" 2 "WARNING" 1 "ERROR" 0 "NO_ERROR" ;
+VAL_ 2566849002 Actual_Limitation_Status 3 "NO_DATA" 2 "RESERVED" 1 "LIMIT_ACTIVE" 0 "NO_LIMIT_ACTIVE" ;
+VAL_ 2566849002 Actual_InverterReady 3 "NO_DATA" 2 "RESERVED" 1 "READY" 0 "NOT_READY" ;
+VAL_ 2566849002 Actual_InverterStatus 3 "NO_DATA" 2 "RESERVED" 1 "POWER_SECTION_ENABLED" 0 "POWER_SECTION_INHIBITED" ;
+VAL_ 2566848759 Clamp15_Status 3 "NO_DATA" 2 "RESERVED" 1 "ENABLED" 0 "DISABLED" ;
+VAL_ 2566848759 DC_Link_Charge_State 3 "No_Data" 2 "Discharge_Complete" 1 "Precharge_Complete" 0 "Precharge_Not_Complete" ;
+VAL_ 2566848759 Error_Lamp 3 "No_Data" 2 "RESERVED" 1 "On" 0 "Off" ;
+VAL_ 2566848759 Device_State 3 "No_Data" 2 "RESERVED" 1 "Initialization_Active" 0 "Initialization_Complete" ;
+VAL_ 2566848746 Clamp15_Status 3 "NO_DATA" 2 "RESERVED" 1 "ENABLED" 0 "DISABLED" ;
+VAL_ 2566848746 DC_Link_Charge_State 3 "No_Data" 2 "Discharge_Complete" 1 "Precharge_Complete" 0 "Precharge_Not_Complete" ;
+VAL_ 2566848746 Error_Lamp 3 "No_Data" 2 "RESERVED" 1 "On" 0 "Off" ;
+VAL_ 2566848746 Device_State 3 "No_Data" 2 "RESERVED" 1 "Initialization_Active" 0 "Initialization_Complete" ;
+VAL_ 2566853504 PSU_Control 3 "NO_DATA" 2 "RESERVED" 1 "ENABLE" 0 "DISABLE" ;
+VAL_ 2566906496 DCU_Control 3 "NO_DATA" 2 "RESERVED" 1 "ENABLE" 0 "DISABLE" ;
+VAL_ 2566906240 DCU_Control 3 "NO_DATA" 2 "RESERVED" 1 "ENABLE" 0 "DISABLE" ;
+VAL_ 2566853248 DCU_Control 3 "NO_DATA" 2 "RESERVED" 1 "ENABLE" 0 "DISABLE" ;
+VAL_ 2566852992 DCU_Control 3 "NO_DATA" 2 "RESERVED" 1 "ENABLE" 0 "DISABLE" ;
+VAL_ 2566852736 Discharge_Enable 3 "NO_DATA" 2 "RESERVED" 1 "ENABLE" 0 "DISABLE" ;
+VAL_ 2566852736 Clamp15_CAN 3 "NO_DATA" 2 "RESERVED" 1 "ENABLE" 0 "DISABLE" ;
+VAL_ 2566852736 System_Enable 3 "NO_DATA" 2 "RESERVED" 1 "ENABLE" 0 "DISABLE" ;
+
+VAL_TABLE_ GPS_FilterMode 3 "WithGNSS" 1 "Coasting" 0 "NoGNSS" ;
+VAL_TABLE_ GPS_Error 42 "BufferOverflow" 41 "DataOverflow" 40 "DeviceError" 33 "InvalidParameter" 32 "BaudrateOutOfRange" 30 "TimerOverflow" 4 "MessageSentInvalid" 3 "PeriodSentOutOfRange" ;
+VAL_TABLE_ RTK_Status 2 "RTK_FIXED" 1 "RTK_FLOATING" 0 "NO_RTK" ;
+VAL_TABLE_ DFU_Controller 4 "WDAQ" 3 "RC" 2 "FC" 1 "ACM" 0 "INVALID" ;
+VAL_TABLE_ SDC_Point 17 "TSMS" 16 "CHARGING_INTERLOCK" 15 "HV_INTERLOCK" 14 "IMD_RELAY" 13 "BMS_RELAY" 12 "HVBB" 11 "FRONT_RIGHT_MOTOR_INTERLOCK" 10 "CSB" 9 "BOTS" 8 "FRONT_LEFT_MOTOR_INTERLOCK" 7 "FC_RELAY" 6 "INERTIA_SWITCH" 5 "RES" 4 "REAR_MOTOR_INTERLOCK" 3 "SDB" 2 "RC_RELAY" 1 "BSPD" 0 "CLOSED" ;
+VAL_TABLE_ RES_Status 1 "Enabled" 0 "Disabled" ;
+VAL_TABLE_ RES_Requested_State 128 "Reset" 1 "Operational" ;
+VAL_TABLE_ RES_Node_ID 17 "Node_ID_11" 0 "All" ;
+VAL_TABLE_ ACM_Error 17 "PCAN_WATCHDOG" 16 "ICAN_WATCHDOG" 15 "RCAN_WATCHDOG" 14 "PRECHARGE_FAILURE" 13 "SDC_AFTER_HVBB" 12 "SDC_AFTER_TSMS" 11 "SDC_AFTER_CHARGING_INTERLOCK" 10 "SDC_AFTER_HV_INTERLOCK" 9 "BMS_CELL_OPEN_WIRE" 8 "BMS_OVERTEMP" 7 "BMS_UNDERVOLT" 6 "BMS_OVERVOLT" 5 "IMD_ERROR" 4 "IMD_RESISTANCE_LOW" 3 "PRECHARGE_IMPLAUSIBILITY" 2 "AIRN_IMPLAUSIBILITY" 1 "AIRP_IMPLAUSIBILITY" 0 "NONE" ;
+VAL_TABLE_ RC_State 9 "AMS_FAULT" 8 "AS_FINISHED" 7 "AS_EMERGENCY" 6 "DISCHARGE" 5 "DRIVE" 4 "TS" 3 "EBS_CHECK" 2 "PRECHARGE" 1 "LV" 0 "LV_OFF" ;
+VAL_TABLE_ RC_Error 1 "AMS_FAULT" 0 "NONE" ;
+VAL_TABLE_ InverterStatus 3 "NO_DATA" 2 "RESERVED" 1 "POWER_SECTION_ENABLED" 0 "POWER_SECTION_INHIBITED" ;
+VAL_TABLE_ InverterReady 3 "NO_DATA" 2 "RESERVED" 1 "READY" 0 "NOT_READY" ;
+VAL_TABLE_ InverterErrorStatus 3 "NO_DATA" 2 "WARNING" 1 "ERROR" 0 "NO_ERROR" ;
+VAL_TABLE_ InverterLimitationStatus 3 "NO_DATA" 2 "RESERVED" 1 "LIMIT_ACTIVE" 0 "NO_LIMIT_ACTIVE" ;
+VAL_TABLE_ InverterEnabledDisabled 3 "NO_DATA" 2 "RESERVED" 1 "ENABLED" 0 "DISABLED" ;
+VAL_TABLE_ DC_Link_Charge_State 3 "No_Data" 2 "Discharge_Complete" 1 "Precharge_Complete" 0 "Precharge_Not_Complete" ;
+VAL_TABLE_ Error_Lamp 3 "No_Data" 2 "RESERVED" 1 "On" 0 "Off" ;
+VAL_TABLE_ Device_State 3 "No_Data" 2 "RESERVED" 1 "Initialization_Active" 0 "Initialization_Complete" ;
+VAL_TABLE_ Clamp15_Status 3 "NO_DATA" 2 "RESERVED" 1 "ENABLED" 0 "DISABLED" ;
+VAL_TABLE_ DCU_Control 3 "NO_DATA" 2 "RESERVED" 1 "ENABLE" 0 "DISABLE" ;
