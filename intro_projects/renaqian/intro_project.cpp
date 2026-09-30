@@ -473,6 +473,7 @@ void setup(void) {
   xTaskCreate(bmsTask, "BMS", 256, NULL, 3, NULL);
   xTaskCreate(stateMachineTask, "State", 256, NULL, 2, NULL);
 
+  vTaskStartScheduler();
 }
 
 void loop(void) {}
