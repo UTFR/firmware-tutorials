@@ -58,7 +58,6 @@ Mock library functions have been provided where necessary (marked with extern).
 
 NOTE - EXTREMELY IMPORTANT: the CAN methods `can_send` and `can_receive` are NOT
 thread safe.
-
 Also think about the implications of having two peripherals on one SPI bus.
 
 ----------------------------
@@ -113,10 +112,58 @@ clang-format as soon as possible and set it up :)
 */
 
 /*
+Start with assigning pins. Remember constants are defined with #define.
+They come with the limitation that need parentheses. 
+For instance, given #define a = 5+4. 
+#define b = a * 2 does not yield 18 as you might expect
+but instead 5+4*2 or 13. 
+*/
+
+/*
   Initialize the CAN peripheral with given RX and TX pins at a given baudrate.
 */
-extern void can_init(uint8_t rx, uint8_t tx, uint32_t baudrate);
 
+#define TS_ON = 12;
+#define RTD = 13;
+#define CURRENT_SENSOR = 19;
+
+#define CAN_RX = 2;
+#define CAN_TX = 3;
+#define MOSI = 5;
+
+#define MISO = 6;
+#define SCK: 7;
+#define LCD_CS = 8;
+
+#define BMS_CS: = 9;
+#define AIR_P = 22;
+#define Precharge = 23;
+
+#define AIR_N = 10;
+
+
+/*
+  Important Terminology (I2C):
+  MOSI - Master Out Slave In
+  MISO - Master In Slave Out
+  SCK - Serial Clock
+  Ics_cs - Chip Select/Slave Slect
+ */
+
+/*Other important constants*/ 
+#define BD_RATE = 1000000;
+#define SPEED = 90;
+#define MAX_CELL_COUNT = 1000;
+#define BMS_MAX_V = 28;
+#define BMS_MIN_V = 10;
+#define BMS_MAX_TEMP = 41;
+#define BMS_MIN_TEMP = 11;
+
+/*Motor constant*/
+#define M = 1;
+
+
+extern void can_init(uint8_t rx, uint8_t tx, uint32_t baudrate);
 /*
   Send a CAN message with a given id.
   The 8 byte payload is encoded as a uint64_t
@@ -161,6 +208,45 @@ extern float bms_get_voltage(uint8_t n);
 */
 extern float bms_get_temperature(uint8_t n);
 
-void setup(void) {}
+/*This program runs once. */
+void setup(void) {
+  /*Important initializations*/
+  bms_init(MOSI, MISO, SCK, BMS_CS);
+  can_init(CAN_RX, CAN_TX, BD_RATE);
+  lcd_init(MOSI, MISO, SCK, LCD_CS); /*We must chip select the LCD?*/
 
-void loop(void) {}
+  float temp;
+  float voltage;
+  boolean passed = true;
+
+  /*BMS Safety Checks*/
+  for (int i = 0; i < MAX_CELL_COUNT; < i++) {
+
+    /*retreive data*/
+    temp = bms_get_voltage(i);
+    voltage = bms_get_voltage(i);
+
+
+    /*Case1: Car fails battery safety checks.*/
+    if !((BMS_MIN_TEMP < temp < BMS_MAX_TEMP) && (BMS_MIN_V < voltage < BMS_MAX_TEMP)) {
+      lcd_printf("Failed Safety Checks: BMS reported cell (#, C, V): ", i, temp, voltage);
+      passed = false;
+      break;
+    };
+
+    /*Case2: Car passed safety inspections*/
+    if (passed) {
+      lcd_printf("Passed Safety Checks!");
+    };
+    /*Presumably the car */
+  };
+  /*Precharge Algorithm*/
+
+
+
+}
+
+void loop(void) {
+  can_send(M, SPEED);
+
+}
