@@ -1,6 +1,7 @@
 #include <Arduino_FreeRTOS.h>
 #include <stdint.h>
 #include <semphr.h>
+#include <string.h>
 
 /*
 The car has three possible functional states:
@@ -142,6 +143,7 @@ volatile unsigned long wheelspeedFLCount = 0, wheelspeedFRCount = 0, wheelspeedR
 
 SemaphoreHandle_t canMutex;
 SemaphoreHandle_t spiMutex;
+SemaphoreHandle_t relayMutex;
 
 #define ADC_MAX_COUNTS 4095.0 // teensy 4.1 uses 12 bit resolution, 2^12 - 1
 #define ADC_REF_VOLTAGE 3.3
@@ -271,17 +273,17 @@ void torqueTask(void *pvParameters){
     float torques[4];
     calculate_torque_cmd(torques, current, wheelspeeds, steeringAngle);
 
-    if (carState != STATE_RTD){
+    if (carState != STATE_RTD || faultLatched){
       for (int i = 0; i < 4; i++){
         torques[i] = 0.0f;
       }
     }
 
     xSemaphoreTake(canMutex, portMAX_DELAY); // same thing
-    can_send(TORQUE_FL_CAN_ID, 0);
-    can_send(TORQUE_FR_CAN_ID, 0);
-    can_send(TORQUE_RL_CAN_ID, 0);
-    can_send(TORQUE_RR_CAN_ID, 0);
+    can_send(TORQUE_FL_CAN_ID, packFloat(torques[0]));
+    can_send(TORQUE_FR_CAN_ID, packFloat(torques[1]));
+    can_send(TORQUE_RL_CAN_ID, packFloat(torques[2]));
+    can_send(TORQUE_RR_CAN_ID, packFloat(torques[3]));
     xSemaphoreGive(canMutex);
 
     xSemaphoreTake(sensorDataMutex, portMAX_DELAY);
@@ -338,8 +340,10 @@ static void openRelays(void){
 }
 
 void shutdown(void){
+  xSemaphoreTake(relayMutex, portMAX_DELAY);
   openRelays();
   faultLatched = true;
+  xSemaphoreGive(relayMutex);
 }
 
 static bool runPrecharge(void){
@@ -348,20 +352,25 @@ static bool runPrecharge(void){
 
   for (int elapsed = 0; elapsed < PRECHARGE_TIME_MS; elapsed += PRECHARGE_CHECK_MS){
     if (faultLatched){
+      xSemaphoreTake(relayMutex, portMAX_DELAY);
       openRelays();
       return false;
+      xSemaphoreGive(relayMutex);
     }
 
     vTaskDelay(PRECHARGE_CHECK_MS / portTICK_PERIOD_MS);
   }
 
+  xSemaphoreTake(relayMutex, portMAX_DELAY);
   if (faultLatched){
     openRelays();
+    xSemaphoreGive(relayMutex);
     return false;
   }
 
   digitalWrite(AIRPLUS, HIGH);
   digitalWrite(PRECHARGE, LOW);
+  xSemaphoreGive(relayMutex);
   return true;
 
 }
@@ -457,6 +466,7 @@ void setup(void) {
   canMutex = xSemaphoreCreateMutex();
   spiMutex = xSemaphoreCreateMutex();
   sensorDataMutex = xSemaphoreCreateMutex();
+  relayMutex = xSemaphoreCreateMutex();
 
   pinMode(WHEELSPEED_FL, INPUT_PULLUP);
   pinMode(WHEELSPEED_FR, INPUT_PULLUP);
