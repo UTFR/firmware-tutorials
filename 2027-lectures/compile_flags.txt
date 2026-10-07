@@ -1,0 +1,6 @@
+-mcpu=cortex-m7
+-mthumb
+-mfloat-abi=hard
+-D__IMXRT1062__
+-I../lib/freertos-teensy-master/src
+-I../lib/freertos-teensy-master/src/portable
