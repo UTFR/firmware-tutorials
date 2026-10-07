@@ -1,3 +1,9 @@
 CompileFlags:
     Add: []
     CompilationDatabase: "."
+---
+If:
+    PathMatch: 2027-lectures/.*
+CompileFlags:
+    CompilationDatabase: 2027-lectures
+    Compiler: arm-none-eabi-gcc
