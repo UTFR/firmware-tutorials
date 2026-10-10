@@ -154,10 +154,7 @@ but instead 5+4*2 or 13.
 #define BD_RATE = 1000000;
 #define SPEED = 90;
 #define MAX_CELL_COUNT = 1000;
-#define BMS_MAX_V = 28;
-#define BMS_MIN_V = 10;
-#define BMS_MAX_TEMP = 41;
-#define BMS_MIN_TEMP = 11;
+
 
 /*Motor constant*/
 #define M = 1;
@@ -208,6 +205,66 @@ extern float bms_get_voltage(uint8_t n);
 */
 extern float bms_get_temperature(uint8_t n);
 
+/*Create a function for checking the batteries*/
+boolean bms_check() {
+/*For thread safety*/
+  Semaphore
+
+  #define BMS_MAX_V = 28;
+  #define BMS_MIN_V = 10;
+  #define BMS_MAX_TEMP = 41;
+  #define BMS_MIN_TEMP = 11;
+
+  float temp;
+  float voltage;
+
+  /*Basics of freeRTOS strucutre.*/
+  /*Example of a task in RTOS: void toggleLED(void *parameter) {}*/
+  /*Regarding timing: Remember, in RTOS, if you delay a task, RTOS will execute another task until the the delay time is over.*/
+  /*Tick Timers: Almost all RTOS' are based off a tick timer. A tick timer is simply a hardware timer allocated to interupt a hardware process over an interval. By default, freeRTOS sets one tick timer to one ms, and portTICK_PERIOD_MS to one.*/
+  /*Remember, the freeRTOS function vTaskDelay expects as input # of tick delay, not # of MS. This isn't too bad as by default a tick is simply 1ms.*/
+
+  /*
+  What do you need before running any task?
+  Before running any task, you must call the vTaskStartSchduler() in main after setting up your tasks. Only then do tasks begin to excute.
+  */
+
+  /*How do I create a task in RTOS?*/
+  /*You create a task in RTOS with:
+  xTaskCreate(
+      toggleLED, //Function to be called in a task
+      "Toggle LED", //Name of the task'
+      1024, //Stack size (# of words in FreeRTOS)
+      Null, //This is the next perameter. Parameter to pass to function.
+      1, //This is the priority of a task. By default, in FreeRTOS, you can set priority from 0 to 24. Therefore, you have 25 different priority levels (0 to configMAX_PRIORITIES - 1).
+      Null, //This is the task handle, you can assign a pointer to watch over a task. Basically, the handle is primraily used by other tasks to affect the state of another task. 
+
+  ).*/
+
+  /*Note a word in a 32bit system is 4bytes, while a word in a 64 bit processor is 8 bytes. In essence, a word is the maximum amoutn of data a CPU can adress in one operation.*/
+  /*Where are tasks made in freeRTOS? In freeRTOS, tasks are created in void setup. Ignore void loop, it has no purpose.*/
+
+  /*Understanding the schduler*/
+
+
+  /*BMS Safety Checks*/
+  for (int i = 0; i < MAX_CELL_COUNT; < i++) {
+
+    /*retreive data*/
+    b
+    temp = bms_get_temperature(i);
+    voltage = bms_get_voltage(i);
+
+    /*Case1: Car fails battery safety checks.*/
+    if !((BMS_MIN_TEMP < temp < BMS_MAX_TEMP) && (BMS_MIN_V < voltage < BMS_MAX_TEMP)) {
+      return false;
+    };
+
+    /*Case2: Car passed safety inspections*/
+    return true;
+  };
+}
+
 /*This program runs once. */
 void setup(void) {
   /*Important initializations*/
@@ -215,32 +272,7 @@ void setup(void) {
   can_init(CAN_RX, CAN_TX, BD_RATE);
   lcd_init(MOSI, MISO, SCK, LCD_CS); /*We must chip select the LCD?*/
 
-  float temp;
-  float voltage;
-  boolean passed = true;
 
-  /*BMS Safety Checks*/
-  for (int i = 0; i < MAX_CELL_COUNT; < i++) {
-
-    /*retreive data*/
-    temp = bms_get_voltage(i);
-    voltage = bms_get_voltage(i);
-
-
-    /*Case1: Car fails battery safety checks.*/
-    if !((BMS_MIN_TEMP < temp < BMS_MAX_TEMP) && (BMS_MIN_V < voltage < BMS_MAX_TEMP)) {
-      lcd_printf("Failed Safety Checks: BMS reported cell (#, C, V): ", i, temp, voltage);
-      passed = false;
-      break;
-    };
-
-    /*Case2: Car passed safety inspections*/
-    if (passed) {
-      lcd_printf("Passed Safety Checks!");
-    };
-    /*Presumably the car */
-  };
-  /*Precharge Algorithm*/
 
 
 
