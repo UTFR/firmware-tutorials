@@ -245,6 +245,57 @@ boolean bms_check() {
   /*Where are tasks made in freeRTOS? In freeRTOS, tasks are created in void setup. Ignore void loop, it has no purpose.*/
 
   /*Understanding the schduler*/
+  /*Describe the process by which a multithreaded program gets executed:
+  1. Setup acts as a "main" function. In other words, void setup acts as the entry point into the program. Next, within the setup function, tasks can be setup. You can treat a task at a basic level as a forever loop.
+  2. Tasks begin to get executed.   
+  */
+
+  /*
+  What's an ISR?
+  An ISR is an interruprt Service Routine. It's used to handle timer oerflows, pin changes and to send messsages. 
+  */
+
+  /*
+  What's time slicing?
+  Time slicing is where a processor interupts programs at regular intervals, switching between tasks to give the illusion that they're being executed.
+  The "slices" of time the FreeRTOS creates are called time slices, and typically a time slice is 1ms, or one tick.
+  
+  Descirbe how an OS, Task A with priority 0 and task B with priority 1 work together:
+  1. First the Schduler is ran by the OS.
+  2. Next the schduler runs say Task A as there are no other tasks besides it. 
+  3. Task A runs until its allocated time slice runs out.
+  4. The Tick Timer interrupts Task A allowing the OS to run the schduler once more.
+  5. The schduler descides what to run. If Task A is still on its own, Task A is ran.
+  6. Task A runs and completes and calls the vTaskDelay function for two ticks and thus does not run for two ticks. After vTaskDelay is ran, TaskA is said to be in the blocked state.
+  //Important: Even if your program finishes at say 1.8ms, at 2.0ms, vTaskDelay counts a tick even though only 0.2s elapsed. Therefore, instead of TaskA unblocking at 4.0s, it unblocks at 3.0s.
+  To better unstand this, think about this in terms of the schduler. The scheduler counts ticks. Once a new tick tick begins, it first increments the tick, it sees that the number of ticks is 2, and so unblocks/frees taskA. What this means is that by 3.0s mark, task 3 can run, right after it updates the state of the tasks, it decides which tasks to run.  
+  7. By the third time slice, the schduler once again runs, but as there are no tasks, the system idles.
+  */
+
+  /*
+  What if two tasks are unblocked but have equal priority? What occurs?
+  In a case where two tasks of equal priority are waiting to be executed, a round robin occurs. A round robbin is where the schduler alternates between each task between interuprts/time slices.
+  As an example, if Task A with priority 1 runs during time slice 1, by the next interuprt, beginning time slice 2, the schduler will excute Task B with priority B, even if A is not finished executing.
+
+  What's preemtive schduling?
+  Pre-emptive schduling is where CPU time is taken away from lower priority tasks to run higher priority tasks.
+  */
+
+  /*
+  What tasks have the highest priority?
+  Hardware interupts always take priority over running software unless hardware interupts are disabled.
+  The only case where a hardware interupt is pre-empted is if another hardware interupt pre-empts it. That case is called a nested interupt.
+  */
+
+  /*
+  What's an example of a hardware interupt?
+  The tick timer is an example of a hardware interupt.
+  */
+
+  /*
+  What happens if a hardware interupt occurs while a task is running?
+  If a hardware interupt occurs while a task is running, as soon as the interupt resolves, the task returns to a state of output. 
+  */
 
 
   /*BMS Safety Checks*/
