@@ -297,6 +297,43 @@ boolean bms_check() {
   If a hardware interupt occurs while a task is running, as soon as the interupt resolves, the task returns to a state of output. 
   */
 
+  /*
+  What are the states available to a task?
+    -Ready State (In this state, a task is waiting to get executed)
+    -Run State (If a task is selected to be ran by the schduler, it enters the run state)
+    -Blocked State (When running, a task can call an API function like vTaskDelay to enter the blocked state) (Tasks in this state cannot be ran until a condition is met that unblocks them)
+    -Suspended (FreeRTOS has another api called vTaskSuspend. This function forces the task into the suspended state. When in this state, vTaskREsume must be called to return the task back to the ready state) (This is a good way to put a task to sleep if you don't want to work with a timer)
+  */
+
+  /*
+  What's context switching?
+  To preface, when switching between tasks, the schduler has the responsibility of remembering task related data and retreiing it. All this information is stored as something called a context. Saving and restoring context is the essence of context switching. 
+  */
+
+  /*
+  Describe how context switching works in freeRTOS:
+  1. ISR (Hardware Interuprt) Takes the CPU out of executing taskA. CPU begins to execute the code defined by the hardware interupt.
+  2. Within the hardware interupt, the hardware interupt is programmed to tell the computer to save all data on the registers to the stack of taskA (Remember, Tasks have their own unique allocations within RAM).
+  3. TaskA's pointer now points to the top of its stack.
+  4. vTaskSwitch runs - it looks for what tasks are available to run. 
+  5. portRestoreContext runs - it loads the pointer of stackB. It pops all of TaskB's saved registers into the CPU
+  6. A "return" instruction is ran and TaskB begins to run once more. 
+  */
+
+  /*
+  During context switching, explain what information is stored in the Stack and how it's stored:
+  1. First the PC(A) - the program counter - is added to the stack. The Program counter keeps track of what line of code the CPU was last executing. This is pushed on the stack by a hardwar interupt.
+  2. Next, all the data of TaskA stored on registers are added to the stack by portSaveContext() (Note: Information that could be in the CPU registeries include local variables - mind you inactive local variables just sit on the stack. )
+  3. Kernel makes a copy of the Task pointer - the one that points to the top of the stack of say TaskA.
+
+  */
+
+  /*
+  Where is the pointer for a task stored - the "copy" created by the kernel?
+  All information associated with a task is stored in a TCB (Task Control Block). A TCB is created whenever a taks is created.
+  The first member of a task TCB is the pointer. 
+  */
+
 
   /*BMS Safety Checks*/
   for (int i = 0; i < MAX_CELL_COUNT; < i++) {
