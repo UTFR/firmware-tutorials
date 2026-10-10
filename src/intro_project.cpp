@@ -111,112 +111,7 @@ you end up with lots of useless formatting changes. You should install
 clang-format as soon as possible and set it up :)
 */
 
-/*
-Start with assigning pins. Remember constants are defined with #define.
-They come with the limitation that need parentheses. 
-For instance, given #define a = 5+4. 
-#define b = a * 2 does not yield 18 as you might expect
-but instead 5+4*2 or 13. 
-*/
 
-/*
-  Initialize the CAN peripheral with given RX and TX pins at a given baudrate.
-*/
-
-#define TS_ON = 12;
-#define RTD = 13;
-#define CURRENT_SENSOR = 19;
-
-#define CAN_RX = 2;
-#define CAN_TX = 3;
-#define MOSI = 5;
-
-#define MISO = 6;
-#define SCK: 7;
-#define LCD_CS = 8;
-
-#define BMS_CS: = 9;
-#define AIR_P = 22;
-#define Precharge = 23;
-
-#define AIR_N = 10;
-
-
-/*
-  Important Terminology (I2C):
-  MOSI - Master Out Slave In
-  MISO - Master In Slave Out
-  SCK - Serial Clock
-  Ics_cs - Chip Select/Slave Slect
- */
-
-/*Other important constants*/ 
-#define BD_RATE = 1000000;
-#define SPEED = 90;
-#define MAX_CELL_COUNT = 1000;
-
-
-/*Motor constant*/
-#define M = 1;
-
-
-extern void can_init(uint8_t rx, uint8_t tx, uint32_t baudrate);
-/*
-  Send a CAN message with a given id.
-  The 8 byte payload is encoded as a uint64_t
-*/
-extern void can_send(uint8_t id, uint64_t payload);
-/*
-  Receive a CAN message with a given id into a uint64_t
-*/
-extern void can_receive(uint64_t *payload, uint8_t id);
-
-/*
-  Calculates four torques, in order, for the Front Left, Front Right, Rear Left,
-  and Rear Right motors given current, wheelspeeds (in the same order), and a
-  steering angle.
-*/
-extern void calculate_torque_cmd(
-  float *torques, float current, float *wheelspeeds, float steering_angle
-);
-
-/*
-  Initialize the LCD peripheral
-*/
-extern void lcd_init(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t lcs_cs);
-
-/*
-  Print something to the LCD
-*/
-extern void lcd_printf(const char *fmt, ...);
-
-/*
-  Initialize the BMS
-*/
-extern void bms_init(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t lcs_cs);
-
-/*
-  Get voltage of the nth cell in the battery
-*/
-extern float bms_get_voltage(uint8_t n);
-
-/*
-  Get temperature of the nth cell in the battery
-*/
-extern float bms_get_temperature(uint8_t n);
-
-/*Create a function for checking the batteries*/
-boolean bms_check() {
-/*For thread safety*/
-  Semaphore
-
-  #define BMS_MAX_V = 28;
-  #define BMS_MIN_V = 10;
-  #define BMS_MAX_TEMP = 41;
-  #define BMS_MIN_TEMP = 11;
-
-  float temp;
-  float voltage;
 
   /*Basics of freeRTOS strucutre.*/
   /*Example of a task in RTOS: void toggleLED(void *parameter) {}*/
@@ -334,24 +229,225 @@ boolean bms_check() {
   The first member of a task TCB is the pointer. 
   */
 
+  /*Memory Management*/
 
-  /*BMS Safety Checks*/
-  for (int i = 0; i < MAX_CELL_COUNT; < i++) {
+  /*
+  What's a static allocaiton?
+  After compiling, the needed space for static and global variable data is known. Therefore, when a processor runs an executable, it assigns some of ram to store these values. This is reffered to as static allocation.
 
-    /*retreive data*/
-    b
-    temp = bms_get_temperature(i);
-    voltage = bms_get_voltage(i);
+  After compiling, the stack and grow in size, what is this refered to as?
+  This is known as automatic allocation. The stack will automatically consume free memory.
 
-    /*Case1: Car fails battery safety checks.*/
-    if !((BMS_MIN_TEMP < temp < BMS_MAX_TEMP) && (BMS_MIN_V < voltage < BMS_MAX_TEMP)) {
-      return false;
-    };
+  What's the heap, and what direction does it grow?
+  The heap is disorganized storage that is also automatically allocated. It typically grows towards the stack.
+  
+  What's the heap usually used for?
+  The heap is usually used for Dynamic allocation. Generally you will use a function like malloc(). In C and C++, don't forget you must always free up memory you allocate after you're finished using it. If you do not the heap will grow indefinitely. 
 
-    /*Case2: Car passed safety inspections*/
-    return true;
-  };
+  What's a memory leak?
+  A memory leak is when the heap grows on forever.
+
+  What's a danger of letting the heap and stack growing unbounded?
+  They could start crossing each other and overwriting each others memory.
+
+  What does malloc returning "null" mean?
+  That means the function malloc failed to find free memory to allocate.
+
+  Where is RAM is the memory for tasks stored?
+  Tasks are stored in the Heap. The memory allocation for a task can be broken up into two components. Upon xTaskCreate, memory is allocated for the task stack, and the task TCB where the stack pointer is housed allong with task state. Essentially, all the info you need to manipulate a task.
+  */
+
+  /*
+  What are some tips for managing the size of a heap?
+  If you repeatedly allocate and free heap you could fragment it. As the heap attempts to find the largets contigous memory to allocate for tasks, if you're not stretegic, thsi could cause the heap ot grow towards the stack faster even if free spots are available. 
+
+  What are the most commonly used heap allocations?
+  Heap 4
+  Heap 1 - for criticla applications 
+  */
+
+  /*
+  What does Stack Canary watchpoint mean?
+  The OS sets some known values to the last few bytes of the stack, when they change, the OS warns you you've gone into stack overflow.
+  */
+
+  /*
+    What's uxTask getStackhighWaterMark(); used for?
+    This function outputs the number of words you have left in your stack.
+  */
+
+  /*
+  Unless you're using heap3, should you use pvPortMalloc(1024 * sizeof(int)); or regular malloc?
+  Regular malloc is not thread safe.  
+  */
+
+  /*
+  Why is vPortFree important?
+  vPortFree allows us to free up allocated memory.
+  */
+
+  /*
+  What are the most useful queue modlules?
+  xQueueCreate
+  vQueueDelete
+  xQueueSend
+  xQueueReceive
+
+  Where are basic queue sent?
+  They sent in heap memory.
+  */
+
+/*
+Start with assigning pins. Remember constants are defined with #define.
+They come with the limitation that need parentheses. 
+For instance, given #define a = 5+4. 
+#define b = a * 2 does not yield 18 as you might expect
+but instead 5+4*2 or 13. 
+*/
+
+/*
+  Initialize the CAN peripheral with given RX and TX pins at a given baudrate.
+*/
+
+#define TS_ON = 12;
+#define RTD = 13;
+#define CURRENT_SENSOR = 19;
+
+#define CAN_RX = 2;
+#define CAN_TX = 3;
+#define MOSI = 5;
+
+#define MISO = 6;
+#define SCK: 7;
+#define LCD_CS = 8;
+
+#define BMS_CS: = 9;
+#define AIR_P = 22;
+#define Precharge = 23;
+
+#define AIR_N = 10;
+
+
+/*
+  Important Terminology (I2C):
+  MOSI - Master Out Slave In
+  MISO - Master In Slave Out
+  SCK - Serial Clock
+  Ics_cs - Chip Select/Slave Slect
+ */
+
+/*Other important constants*/ 
+#define BD_RATE = 1000000;
+#define SPEED = 90;
+#define MAX_CELL_COUNT = 1000;
+
+/*Motor constant*/
+#define HIGH = 1;
+#define LOW = 0;
+
+#define MAX_CELL_COUNT = 100;
+#define BMS_MAX_V = 4.3;
+#define BMS_MIN_V = 2.8;
+#define BMS_MAX_TEMP = 60;
+
+/*States*/
+#define LV = 0; //De-energized
+#define TS = 1; //Energized
+#define RTD = 2; //Ready to drive
+
+//I'll make up my own CAN values
+
+/*
+Definition of Hexademical:
+Hexadecimal is basically a system where numbers are counted by 16.
+The general structure of a hexadecimal number is 0x - which tells you it's a hexadecimal number - followed by two digits. 
+
+Front Right & Left Motors:
+0x00
+Rear Right & Left Motors:
+0x01
+Current Sensor:
+0x02
+*/
+
+
+
+extern void can_init(uint8_t rx, uint8_t tx, uint32_t baudrate);
+/*
+  Send a CAN message with a given id.
+  The 8 byte payload is encoded as a uint64_t
+*/
+extern void can_send(uint8_t id, uint64_t payload);
+/*
+  Receive a CAN message with a given id into a uint64_t
+*/
+extern void can_receive(uint64_t *payload, uint8_t id);
+
+/*
+  Calculates four torques, in order, for the Front Left, Front Right, Rear Left,
+  and Rear Right motors given current, wheelspeeds (in the same order), and a
+  steering angle.
+*/
+extern void calculate_torque_cmd(
+  float *torques, float current, float *wheelspeeds, float steering_angle
+);
+
+/*
+  Initialize the LCD peripheral
+*/
+extern void lcd_init(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t lcs_cs);
+
+/*
+  Print something to the LCD
+*/
+extern void lcd_printf(const char *fmt, ...);
+
+/*
+  Initialize the BMS
+*/
+extern void bms_init(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t lcs_cs);
+
+/*
+  Get voltage of the nth cell in the battery
+*/
+extern float bms_get_voltage(uint8_t n);
+
+/*
+  Get temperature of the nth cell in the battery
+*/
+extern float bms_get_temperature(uint8_t n);
+
+void runMotor(void *pvParameters) {
+  //Read Sensors
+
+
+  // Send CAN commands
+
 }
+
+void manageBMS(void *pvParameters) {
+  //Iterate through the cells and get temperature and voltage
+  //!!!Remember, as you're using the SPI - you need to implement some sort of system that prevents SPI lines to be used by two tasks simultaneously.
+  float voltage;
+  float temperature;
+  for (int i; i < MAX_CELL_COUNT - 1; i++) {
+    voltage = bms_get_voltage;
+    temperature = bms_get_temperature;
+    if (BMS_MIN_V < voltage < BMS_MAX_V) {
+      //We need to de-energize somehow
+    };
+    if (temperature > BMS_MAX_TEMP) {
+      //We need to de-energize somehow
+    }
+  };
+
+};
+
+void manageStates(void *pvParameters) {
+  //We need to check for inputs to determine what state the CAR is in.
+  //We're going use some sort of CAN to communicate between the managerBMS and the manageState.
+}
+
 
 /*This program runs once. */
 void setup(void) {
