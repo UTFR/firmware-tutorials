@@ -238,7 +238,7 @@ uint8_t AIRP = 22;
 uint8_t PRECHARGE = 23;
 uint8_t AIRN = 10;
 
-// define wheel speed (CAN IDS FOR SENSORS)
+// define wheel speed (pins for wheel  speeds)
 uint8_t FL = 14; // front left ... etc
 uint8_t FR = 15;
 uint8_t RL = 16;
