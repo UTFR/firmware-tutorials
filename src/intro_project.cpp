@@ -297,6 +297,16 @@ clang-format as soon as possible and set it up :)
   They sent in heap memory.
   */
 
+  /*
+  What's a race condition?
+  A race condition is a situation where you get unexamplable behaviour, as behaviour is dependnet on the timing of uncontrollable events.
+  */
+
+  /*
+  What's a mutex?
+  A short form for mutual exlcusion. It's like the key to the restroom. If the key is not available, you must wait for the key. 
+  */
+
 /*
 Start with assigning pins. Remember constants are defined with #define.
 They come with the limitation that need parentheses. 
@@ -308,6 +318,12 @@ but instead 5+4*2 or 13.
 /*
   Initialize the CAN peripheral with given RX and TX pins at a given baudrate.
 */
+
+/*
+Passing Parameters to tasks
+Remember, if you pass a local variable to a task you run the risk of going out of scope. 
+*/
+
 
 #define TS_ON = 12;
 #define RTD = 13;
@@ -326,6 +342,10 @@ but instead 5+4*2 or 13.
 #define Precharge = 23;
 
 #define AIR_N = 10;
+
+//creating mutexes for CAN & SPI
+static SemaphoreHandle_t xLockCAN;
+static SemaphoreHandle_t xLockSPI;
 
 
 /*
@@ -350,10 +370,22 @@ but instead 5+4*2 or 13.
 #define BMS_MIN_V = 2.8;
 #define BMS_MAX_TEMP = 60;
 
+
+
+//Note: In freeRTOS sempahores and mutexes are defined very similarly as they're similar. 
+/*State Queue Handle*/
+static QueueHandle_t bms_queue;
+static const uint8_t bms_queue_len = 5;
+
+
 /*States*/
 #define LV = 0; //De-energized
 #define TS = 1; //Energized
 #define RTD = 2; //Ready to drive
+
+/*Semaphore*/
+//Set to null - basically a placeholder saying no event to be concerned about.
+static SemaphoreHandle_t BMS_FAULT = null;
 
 //I'll make up my own CAN values
 
@@ -419,34 +451,65 @@ extern float bms_get_temperature(uint8_t n);
 
 void runMotor(void *pvParameters) {
   //Read Sensors
+  if (xSempahoreTake(xLock_CAN, 0) == pdTRUE) {
+    xSempahoreGive(xLock_CAN)
+  }
+  //If you can't get the mutexe
+  else {
 
+  }
 
   // Send CAN commands
 
 }
 
+//Should warn the manage state task.
 void manageBMS(void *pvParameters) {
   //Iterate through the cells and get temperature and voltage
   //!!!Remember, as you're using the SPI - you need to implement some sort of system that prevents SPI lines to be used by two tasks simultaneously.
   float voltage;
   float temperature;
+
   for (int i; i < MAX_CELL_COUNT - 1; i++) {
-    voltage = bms_get_voltage;
-    temperature = bms_get_temperature;
+    voltage = bms_get_voltage();
+    temperature = bms_get_temperature();
     if (BMS_MIN_V < voltage < BMS_MAX_V) {
       //We need to de-energize somehow
+      semaphoreGive(BMS_FAULT) //A fault is ready to be consumed. manageBMS is the producer of the fault semaphore.
     };
     if (temperature > BMS_MAX_TEMP) {
       //We need to de-energize somehow
+      semaphoreGive(BMS_FAULT)
     }
   };
 
+
 };
 
-void manageStates(void *pvParameters) {
+//What this thing is gonna do:
+//Have a semaphore and wake up whenever the BMS cries
+//Read user inputs from the steering wheel - probably have this in a queue
+
+void manageStates(void *pvParameters) { //This should be a high priority task
   //We need to check for inputs to determine what state the CAR is in.
   //We're going use some sort of CAN to communicate between the managerBMS and the manageState.
+
+  int state;
+  //Forever loop
+  while (1) {
+    // (void *)&state first gets the pointer for the state variable using the ampersand symbol, than.
+    //portMAX_DELAY means we try to read from the queue indefinitely
+    if (xQueueReceive(bms_queue, (void *)&state, portMAX_DELAY) != pdFALSE) {
+      //evaluate what state we should be in
+      
+    }
+  }
 }
+
+  void telemetry(void *pvParameters) {
+    //Should collect all sensor data and output it
+
+  }
 
 
 /*This program runs once. */
@@ -456,10 +519,12 @@ void setup(void) {
   can_init(CAN_RX, CAN_TX, BD_RATE);
   lcd_init(MOSI, MISO, SCK, LCD_CS); /*We must chip select the LCD?*/
 
+  //Creating queue to communicate between manageStates and manageBMS
+  //Remember, reading and writing to a queue is atomic, meaning nothing can interfere with it.
+  //You can create a timeout if the queue is empty 
+  state_queue = xQueueCreate(5, sizeof(int8_t));
 
-
-
-
+  
 }
 
 void loop(void) {
