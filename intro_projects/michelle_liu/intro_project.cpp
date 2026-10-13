@@ -1,5 +1,7 @@
 #include <arduino_freertos.h>
 #include <stdint.h>
+#include <semphr.h>
+#include <string.h>
 using namespace arduino;
 
 /*
@@ -161,20 +163,31 @@ extern float bms_get_voltage(uint8_t n);
 */
 extern float bms_get_temperature(uint8_t n);
 
+/*
+=======================
+Project completed below
+=======================
+*/
+
+// mutex
+static SemaphoreHandle_t can_mutex;
+static SemaphoreHandle_t spi_mutex;
+static SemaphoreHandle_t val_mutex;
+
 // pin assignments
-const uint8_t TSON_PIN= 12;
-const uint8_t RTD_PIN= 13;
-const uint8_t CUR_PIN= 19;
-const uint8_t CANRX_PIN= 2;
-const uint8_t CANTX_PIN= 3;
-const uint8_t MOSI_PIN= 5;
-const uint8_t MISO_PIN= 6;
-const uint8_t SCK_PIN= 7;
-const uint8_t LCDCS_PIN= 8;
-const uint8_t BMSCS_PIN= 9;
-const uint8_t AIRP_PIN= 22;
-const uint8_t PRE_PIN= 23;
-const uint8_t AIRN_PIN= 10;
+const uint8_t TSON_PIN = 12;
+const uint8_t RTD_PIN = 13;
+const uint8_t CUR_PIN = 19;
+const uint8_t CANRX_PIN = 2;
+const uint8_t CANTX_PIN = 3;
+const uint8_t MOSI_PIN = 5;
+const uint8_t MISO_PIN = 6;
+const uint8_t SCK_PIN = 7;
+const uint8_t LCDCS_PIN = 8;
+const uint8_t BMSCS_PIN = 9;
+const uint8_t AIRP_PIN = 22;
+const uint8_t PRE_PIN = 23;
+const uint8_t AIRN_PIN = 10;
 
 // wheelspeed pins
 const uint8_t WSFL_PIN = 14;
@@ -183,18 +196,21 @@ const uint8_t WSRL_PIN = 16;
 const uint8_t WSRR_PIN = 17;
 
 // car state
-const uint8_t LV  = 0;
-const uint8_t TS  = 1;
+const uint8_t LV = 0;
+const uint8_t TS = 1;
 const uint8_t RTD = 2;
-uint8_t car_state = LV;
+const uint8_t PRECHARGING = 3;
+volatile uint8_t car_state = LV;
+
+// assuming HIGH = relay closed
+void relay_close(uint8_t pin) { digitalWrite(pin, HIGH); }
+void relay_open(uint8_t pin) { digitalWrite(pin, LOW); }
 
 // init pins
-void init_pins(){
-  
-  // assuming HIGH = relay closed
-  digitalWrite(AIRP_PIN, LOW);
-  digitalWrite(PRE_PIN, LOW);
-  digitalWrite(AIRN_PIN, LOW);
+void init_pins() {
+  relay_open(AIRP_PIN);
+  relay_open(PRE_PIN);
+  relay_open(AIRN_PIN);
   pinMode(AIRP_PIN, OUTPUT);
   pinMode(PRE_PIN, OUTPUT);
   pinMode(AIRN_PIN, OUTPUT);
@@ -207,11 +223,63 @@ void init_pins(){
   pinMode(WSRR_PIN, INPUT_PULLUP);
 }
 
+// values for LCD
+float cursens;
+float wheelsrpm[4];
+float steerangle;
+float torques[4];
+float bms_vmin, bms_vmax, bms_tmax;
+
+void off() {
+  relay_open(AIRP_PIN);
+  relay_open(PRE_PIN);
+  relay_open(AIRN_PIN);
+  car_state = LV;
+}
+
+void precharge() {
+  car_state = PRECHARGING;
+  relay_close(AIRN_PIN);
+  relay_close(PRE_PIN);
+  vTaskDelay(pdMS_TO_TICKS(5000));
+  if(car_state != PRECHARGING) {
+    return;
+  }
+  relay_close(AIRP_PIN);
+  relay_open(PRE_PIN);
+  car_state = TS;
+}
+
+void state_task(void *) {
+  TickType_t last = xTaskGetTickCount();
+  for(;;) {
+    bool ts_pressed = digitalRead(TSON_PIN) == LOW; // active low
+    bool rtd_pressed = digitalRead(RTD_PIN) == LOW;
+
+    if(car_state == LV && ts_pressed) {
+      precharge();
+    } else if(car_state == TS && rtd_pressed) {
+      car_state = RTD;
+    }
+
+    vTaskDelayUntil(&last, pdMS_TO_TICKS(10));
+  }
+}
 
 void setup(void) {
   init_pins();
+
+  can_mutex = xSemaphoreCreateMutex();
+  spi_mutex = xSemaphoreCreateMutex();
+  val_mutex = xSemaphoreCreateMutex();
+
+  // assumed baudrate = 500000
+  can_init(CANRX_PIN, CANTX_PIN, 500000);
+  lcd_init(MOSI_PIN, MISO_PIN, SCK_PIN, LCDCS_PIN);
+  bms_init(MOSI_PIN, MISO_PIN, SCK_PIN, BMSCS_PIN);
+
+  xTaskCreate(state_task, "state", 1024, NULL, 2, NULL);
+  vTaskStartScheduler();
 }
-
-
 
 void loop(void) {}
