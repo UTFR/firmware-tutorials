@@ -202,6 +202,17 @@ const uint8_t RTD = 2;
 const uint8_t PRECHARGING = 3;
 volatile uint8_t car_state = LV;
 
+// set arbitrary vals
+float wheelsrpm[4];
+volatile uint32_t wsedges[4];
+
+float steerangle;
+uint8_t steerid;
+
+float torques[4];
+uint8_t torqueids[4];
+float bms_vmin, bms_vmax, bms_tmax;
+
 // assuming HIGH = relay closed
 void relay_close(uint8_t pin) { digitalWrite(pin, HIGH); }
 void relay_open(uint8_t pin) { digitalWrite(pin, LOW); }
@@ -223,12 +234,11 @@ void init_pins() {
   pinMode(WSRR_PIN, INPUT_PULLUP);
 }
 
-// values for LCD
-float cursens;
-float wheelsrpm[4];
-float steerangle;
-float torques[4];
-float bms_vmin, bms_vmax, bms_tmax;
+// init isrs
+void wsfl_isr(void) { wsedges[0]++; }
+void wsfr_isr(void) { wsedges[1]++; }
+void wsrl_isr(void) { wsedges[2]++; }
+void wsrr_isr(void) { wsedges[3]++; }
 
 void off() {
   relay_open(AIRP_PIN);
@@ -266,6 +276,49 @@ void state_task(void *) {
   }
 }
 
+float get_current(void) {
+  int rawcur = analogRead(CUR_PIN);
+  return (rawcur * 3300.0f / (1023 * 10)); // mV to A
+}
+
+void get_wheelsrpm(float *wsarr) {
+  uint32_t edges[4];
+
+  static uint32_t lastmicros = 0;
+  static float lastrpm[4];
+  uint32_t now = micros();
+  uint32_t elapsed = now - lastmicros;
+
+  if(elapsed >= 20000) { // 20 ms window
+    noInterrupts();      // pause to avoid isr changes
+
+    for(int i = 0; i < 4; i++) {
+      edges[i] = wsedges[i];
+      wsedges[i] = 0;
+    }
+    interrupts();
+    float seconds = elapsed / 1e6f;
+    for(int i = 0; i < 4; i++) {
+      lastrpm[i] = (edges[i] / 17.0f) / seconds * 60.0f;
+    }
+    lastmicros = now;
+  }
+
+  for(int i = 0; i < 4; ++i) {
+    wsarr[i] = lastrpm[i];
+  }
+}
+
+float get_steering(void) {
+  float angle;
+  uint64_t payload;
+  xSemaphoreTake(can_mutex, portMAX_DELAY);
+  can_receive(&payload, steerid);
+  xSemaphoreGive(can_mutex);
+  uint32_t copypayload = uint32_t(payload);
+  memcpy(&angle, &copypayload, 4);
+  return angle;
+}
 void setup(void) {
   init_pins();
 
@@ -277,6 +330,11 @@ void setup(void) {
   can_init(CANRX_PIN, CANTX_PIN, 500000);
   lcd_init(MOSI_PIN, MISO_PIN, SCK_PIN, LCDCS_PIN);
   bms_init(MOSI_PIN, MISO_PIN, SCK_PIN, BMSCS_PIN);
+
+  attachInterrupt(digitalPinToInterrupt(WSFL_PIN), wsfl_isr, FALLING);
+  attachInterrupt(digitalPinToInterrupt(WSFR_PIN), wsfr_isr, FALLING);
+  attachInterrupt(digitalPinToInterrupt(WSRL_PIN), wsrl_isr, FALLING);
+  attachInterrupt(digitalPinToInterrupt(WSRR_PIN), wsrr_isr, FALLING);
 
   xTaskCreate(state_task, "state", 1024, NULL, 2, NULL);
   vTaskStartScheduler();
