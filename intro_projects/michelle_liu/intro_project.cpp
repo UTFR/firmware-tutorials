@@ -189,7 +189,7 @@ const uint8_t AIRP_PIN = 22;
 const uint8_t PRE_PIN = 23;
 const uint8_t AIRN_PIN = 10;
 
-// wheelspeed pins
+// wheelspeed pins (used any empty pins)
 const uint8_t WSFL_PIN = 14;
 const uint8_t WSFR_PIN = 15;
 const uint8_t WSRL_PIN = 16;
@@ -215,6 +215,12 @@ const uint8_t STEER_ID = 0x20;
 float torques[4];
 // assume motor IDs
 const uint8_t MOTOR_IDS[4] = {0x10, 0x11, 0x12, 0x13}; // FL, FR, RL, RR
+
+// assume number of battery cells
+const uint8_t NUMCELLS = 100;
+const float BVMIN = 2.8f;
+const float BVMAX = 4.3f;
+const float BTMAX = 60;
 float bms_vmin, bms_vmax, bms_tmax;
 
 // assuming HIGH = relay closed
@@ -282,7 +288,7 @@ void state_task(void *) {
 
 float get_current(void) {
   int rawcur = analogRead(CUR_PIN);
-  return (rawcur * 3300.0f / (1023 * 10)); // mV to A
+  return (rawcur * 3300.0f / (1024 * 10)); // mV to A
 }
 
 void get_wheelsrpm(float *wsarr) {
@@ -332,18 +338,18 @@ void torque_task(void *) {
     get_wheelsrpm(ws);
     float steer = get_steering();
 
-    float calctorque[4];
-    calculate_torque_cmd(calctorque, cur, ws, steer);
+    float tq[4];
+    calculate_torque_cmd(tq, cur, ws, steer);
 
     if(car_state != RTD) {
       for(int i = 0; i < 4; ++i) {
-        calctorque[i] = 0;
+        tq[i] = 0;
       }
     }
     xSemaphoreTake(can_mutex, portMAX_DELAY);
     for(int i = 0; i < 4; ++i) {
       uint64_t payload = 0;
-      memcpy(&payload, &calctorque[i], 4);
+      memcpy(&payload, &tq[i], 4);
       can_send(MOTOR_IDS[i], payload);
     }
     xSemaphoreGive(can_mutex);
@@ -352,13 +358,79 @@ void torque_task(void *) {
     current_amps = cur;
     memcpy(wheelsrpm, ws, sizeof(ws));
     steerangle = steer;
-    memcpy(torques, calctorque, sizeof(calctorque));
+    memcpy(torques, tq, sizeof(tq));
     xSemaphoreGive(val_mutex);
     vTaskDelayUntil(&last, pdMS_TO_TICKS(1));
   }
 }
 
-void lcd_task(void *) { xSemaphoreTake(val_mutex); }
+void bms_task(void *) {
+  TickType_t last = xTaskGetTickCount();
+  for(;;) {
+    float vmin = 100000.0f;
+    float vmax = -100000.0f;
+    float tmax = -100000.0f;
+    xSemaphoreTake(spi_mutex, portMAX_DELAY);
+    for(int i = 0; i < NUMCELLS; ++i) {
+      float bv = bms_get_voltage(i);
+      float bt = bms_get_temperature(i);
+
+      if(bv < vmin) {
+        vmin = bv;
+      }
+      if(bv > vmax) {
+        vmax = bv;
+      }
+      if(bt > tmax) {
+        tmax = bt;
+      }
+    }
+    xSemaphoreGive(spi_mutex);
+    if(vmin < BVMIN || vmax > BVMAX || tmax > BTMAX) {
+      off();
+    }
+
+    xSemaphoreTake(val_mutex, portMAX_DELAY);
+    bms_vmin = vmin;
+    bms_vmax = vmax;
+    bms_tmax = tmax;
+    xSemaphoreGive(val_mutex);
+
+    vTaskDelayUntil(&last, pdMS_TO_TICKS(50));
+  }
+}
+
+void lcd_task(void *) {
+  const char *state_names[] = {"LV", "TS", "RTD", "PRECHARGING"};
+  TickType_t last = xTaskGetTickCount();
+  for(;;) {
+    float cur, ws[4], steer, tq[4], vmin, vmax, tmax;
+    uint8_t state = car_state;
+    xSemaphoreTake(val_mutex, portMAX_DELAY);
+    cur = current_amps;
+    memcpy(ws, wheelsrpm, sizeof(ws));
+    steer = steerangle;
+    memcpy(tq, torques, sizeof(tq));
+    vmin = bms_vmin;
+    vmax = bms_vmax;
+    tmax = bms_tmax;
+    xSemaphoreGive(val_mutex);
+
+    xSemaphoreTake(spi_mutex, portMAX_DELAY);
+    lcd_printf("State: %s\n", state_names[state]);
+    lcd_printf("Current: %.1f A\n", cur);
+    lcd_printf(
+      "Wheel Speeds: %.0f %.0f %.0f %.0f\n", ws[0], ws[1], ws[2], ws[3]
+    );
+    lcd_printf("Steer Angle: %.1f\n", steer);
+    lcd_printf("Torque: %.1f %.1f %.1f %.1f\n", tq[0], tq[1], tq[2], tq[3]);
+    lcd_printf("Cell Voltage: %.2f - %.2f\n", vmin, vmax);
+    lcd_printf("Max Temp: %.1f C\n", tmax);
+    xSemaphoreGive(spi_mutex);
+
+    vTaskDelayUntil(&last, pdMS_TO_TICKS(100));
+  }
+}
 void setup(void) {
   init_pins();
 
@@ -376,7 +448,9 @@ void setup(void) {
   attachInterrupt(digitalPinToInterrupt(WSRL_PIN), wsrl_isr, FALLING);
   attachInterrupt(digitalPinToInterrupt(WSRR_PIN), wsrr_isr, FALLING);
 
+  xTaskCreate(lcd_task, "lcd", 1024, NULL, 1, NULL);
   xTaskCreate(state_task, "state", 1024, NULL, 2, NULL);
+  xTaskCreate(bms_task, "bms", 1024, NULL, 3, NULL);
   xTaskCreate(torque_task, "torque", 1024, NULL, 4, NULL);
   vTaskStartScheduler();
 }
