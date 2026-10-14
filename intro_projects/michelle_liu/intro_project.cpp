@@ -206,11 +206,15 @@ volatile uint8_t car_state = LV;
 float wheelsrpm[4];
 volatile uint32_t wsedges[4];
 
+float current_amps;
+
 float steerangle;
-uint8_t steerid;
+// assume steer ID
+const uint8_t STEER_ID = 0x20;
 
 float torques[4];
-uint8_t torqueids[4];
+// assume motor IDs
+const uint8_t MOTOR_IDS[4] = {0x10, 0x11, 0x12, 0x13}; // FL, FR, RL, RR
 float bms_vmin, bms_vmax, bms_tmax;
 
 // assuming HIGH = relay closed
@@ -313,12 +317,48 @@ float get_steering(void) {
   float angle;
   uint64_t payload;
   xSemaphoreTake(can_mutex, portMAX_DELAY);
-  can_receive(&payload, steerid);
+  can_receive(&payload, STEER_ID);
   xSemaphoreGive(can_mutex);
   uint32_t copypayload = uint32_t(payload);
   memcpy(&angle, &copypayload, 4);
   return angle;
 }
+
+void torque_task(void *) {
+  TickType_t last = xTaskGetTickCount();
+  for(;;) {
+    float cur = get_current();
+    float ws[4];
+    get_wheelsrpm(ws);
+    float steer = get_steering();
+
+    float calctorque[4];
+    calculate_torque_cmd(calctorque, cur, ws, steer);
+
+    if(car_state != RTD) {
+      for(int i = 0; i < 4; ++i) {
+        calctorque[i] = 0;
+      }
+    }
+    xSemaphoreTake(can_mutex, portMAX_DELAY);
+    for(int i = 0; i < 4; ++i) {
+      uint64_t payload = 0;
+      memcpy(&payload, &calctorque[i], 4);
+      can_send(MOTOR_IDS[i], payload);
+    }
+    xSemaphoreGive(can_mutex);
+
+    xSemaphoreTake(val_mutex, portMAX_DELAY);
+    current_amps = cur;
+    memcpy(wheelsrpm, ws, sizeof(ws));
+    steerangle = steer;
+    memcpy(torques, calctorque, sizeof(calctorque));
+    xSemaphoreGive(val_mutex);
+    vTaskDelayUntil(&last, pdMS_TO_TICKS(1));
+  }
+}
+
+void lcd_task(void *) { xSemaphoreTake(val_mutex); }
 void setup(void) {
   init_pins();
 
@@ -337,6 +377,7 @@ void setup(void) {
   attachInterrupt(digitalPinToInterrupt(WSRR_PIN), wsrr_isr, FALLING);
 
   xTaskCreate(state_task, "state", 1024, NULL, 2, NULL);
+  xTaskCreate(torque_task, "torque", 1024, NULL, 4, NULL);
   vTaskStartScheduler();
 }
 
