@@ -139,19 +139,34 @@ constexpr float BMS_MAX_TEMP = 60.0f;
 
 constexpr uint32_t CAN_BAUD_RATE = 1000000;
 
-BmsTelementry struct 
+
+MotorSet struct
 {
-  float voltage;
-  float temperature;
-  //Time stamp - not that essential.
+  float motor1;
+  float motor2;
+  float motor3;
+  float motor4;
 };
 
+typedef MotorSummary struct {
+  MotorSet torque;
+  MotorSet speed;
+  float angle;
+  float current;
+} MotorSummary;
+
+typedef BmsSummary struct
+{
+  float maxVoltage;
+  float minVoltage;
+  float maxTemperature;
+} BmsSummary;
 
 //Note: In freeRTOS sempahores and mutexes are defined very similarly as they're similar. 
 /*State Queue Handle*/
 static QueueHandle_t bms_queue, torque_queue;
 static const uint8_t bms_queue_len = 5;
-
+semaphoreHandle_t bmsFault;
 
 /*States*/
 #define LV = 0; //De-energized
@@ -204,6 +219,7 @@ extern float bms_get_voltage(uint8_t n);
 extern float bms_get_temperature(uint8_t n);
 
 void Motor(void *pvParameters) {
+  SystemSummary summary;
   uint64_t current steering;
   uint64_t speed[4];
   float torque[4];
@@ -212,6 +228,8 @@ void Motor(void *pvParameters) {
   for (;;) {
 
   }
+
+  //Need to update this sturct.
 
   //Analyze current and motor speeds & steering
   current = can_receive(0x04) / 10;
@@ -225,6 +243,8 @@ void Motor(void *pvParameters) {
 
   calculate_torque_cmd(&torque, speed, current, steering)
 
+  xQueueSend()
+
   //Send Motor Commands
   can_send(0x00)
   can_send(0x01)
@@ -236,55 +256,61 @@ void Motor(void *pvParameters) {
   vTaskDelayUntil(motor_beat, pdMS_TO_TICKS(1)); //We tick relative to the last tick - this ensures that the motor runs in 1ms intervals. A standard vTaskDelay would be baesd on time slices.
 }
 
-//Should warn the manage state task.
 void BMS(void *pvParameters) {
-  //Iterate through the cells and get temperature and voltage
-  float voltage, highest_voltage, temperature, highest_temperature;
+  float voltage, temperature;
+  BmsSummary summary;
+  bool fault = false;
 
-  //Iterate through cells
+  //Initializations
+  summary.maxVoltage = 0.0f;
+  summary.minVoltage = 999.9f
+  summary.maxTemperature = 0.0f;
+
+  //By industry standard, you should continue looping through the for loop, even after detecting a anomalie, as testing the whole pack gives you the full picture.
   for (int c; c < MAX_CELL_COUNT - c; i++) {
 
     voltage = bms_get_voltage(c);
     temperature = bms_get_temperature(c);
 
-    if (BMS_MIN_V < voltage < BMS_MAX_V) {
-      //A FAULT IS DETECTED -> DE-ENERGIZE
-      semaphoreGive(BMS_FAULT)
-    };
+    //Handle Faults
+    if (BMS_MIN_V < voltage < BMS_MAX_V) fault = true;
+    if (temperature > BMS_MAX_TEMP) fault = true;
 
-    if (temperature > BMS_MAX_TEMP) {
-      //A FAULT IS DETECTED -> DE-ENERGIZE
-      semaphoreGive(BMS_FAULT)
-    };
-    
-    //Identify highest and lowest temperature
-    if (voltage > highest_voltage) highest_voltage = voltage;
-    if (temperature > highest_temperature) highest_temperature = temperature;
-    
-    //Output information to a queue
-    xQueueSend({&highest_voltage, &highest_temperature}, ); //In progress - we must share information with the display task. We probably don't want a long delay. 
-
+    //Collect and organize data
+    if (voltage > highest_voltage) summary.maxVoltage = voltage;
+    if (voltage < min_voltage)  summar.minVoltage = voltage;
+    if (temperature > highest_temperature) localData.temperature = temperature;
   };
+  if (fault) {
+    xSempahoreGive(bmsFault); //Warn the other tasks.
+  }
+
+  //Output information to a queue
+  xQueueOverwrite(bms_queue, &localData); //In progress - we must share information with the display task. We probably don't want a long delay. 
 };
 
+//Consumer - This task will unpack the information collected from the BMS.
 void Display(void *pvParameters) {
-  xQueueReceive() 
+  //Unpacking
+  BmsSummary localBmsSummary;
+  MotorSummary localMotorSummary;
+
+  xQueuePeek(*summary, )
+  xQueuePeek(*localMotorSummary)
+  
+  //Output
+  lcd_printf("Voltage Max: %fV, Voltage Min: %fV, Current Float: %f, Steering: %f Temperature:%f, M1: %fNm %fM/s, M2: %fNm %fM/s , M3: %fNm %fM/s , M4: %fNm %fM/s" localBmsSummary.maxVoltage, localBmsSummary.minVoltage, localMotorSummary.current, localMotorSummary.steering ,localBmsSummary.maxTemperature, localMotorSummary.torque.motor1, localMotorSummary.speed.motor1,  localMotorSummary.torque.motor2, localMotorSummary.speed.motor2,  localMotorSummary.torque.motor3, localMotorSummary.torque.motor3,  localMotorSummary.torque.motor4, localMotorSummary.torque.motor4);
+  vTaskDelay(10); //This doesn't need to run consistently. Just needs to update around every 10ms.
 }
 
-//What this thing is gonna do:
-//Have a semaphore and wake up whenever the BMS cries
-//Read user inputs from the steering wheel - probably have this in a queue
-
 void States(void *pvParameters) { //This should be a high priority task - but it doesn't need to run constantly
-  //We need to check for inputs to determine what state the CAR is in.
-  //We're going use some sort of CAN to communicate between the managerBMS and the manageState.
+  
 
-
+  
   for (;;) {
 
   }
 }
-
 
 /*This program runs once. */
 void setup(void) {
