@@ -135,10 +135,47 @@ enum class CarState { LV, TS, PRECHARGE, RTD };
 //initial state of the car is low voltage
 CarState currentState = CarState::LV;
 
-
 unsigned long prechargeStartTime = 0;
-
 constexpr unsigned long PRECHARGE_DURATION_MS = 5000; //approximately five seconds for precharge
+
+
+constexpr uint8_t WHEEL_SPEED_PIN = 14; //assume the wheel speed sensor is connected to pin 14
+constexpr uint8_t TEETH_PER_REVOLUTION = 17;
+
+// Updated by the interrupt handler
+volatile uint32_t wheelPulseCount = 0;
+
+// Most recently calculated RPM
+float wheelRPM = 0.0f;
+unsigned long lastWheelUpdate = 0;
+
+void wheelSpeedISR() {
+    wheelPulseCount++;
+}
+
+void updateWheelSpeed() {
+    unsigned long now = millis();
+    unsigned long elapsed = now - lastWheelUpdate;
+
+    if (elapsed < 100) {
+        return;
+    }
+
+    // Protect the pulse count while copying and resetting.
+    noInterrupts();
+
+    uint32_t pulses = wheelPulseCount;
+    wheelPulseCount = 0;
+
+    interrupts();
+
+    // 60,000 converts milliseconds to minutes.
+    wheelRPM =
+        (pulses * 60000.0f) /
+        (TEETH_PER_REVOLUTION * elapsed);
+
+    lastWheelUpdate = now;
+}
 
 extern void can_init(uint8_t rx, uint8_t tx, uint32_t baudrate);
 
@@ -206,6 +243,9 @@ void setup(void) {
 
     pinMode(CURRENT_SENSOR_PIN, arduino::INPUT);
     analogReadResolution(12);  //ADC max  is 12 bits
+
+    pinMode(WHEEL_SPEED_PIN, arduino::INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(WHEEL_SPEED_PIN), wheelSpeedISR, arduino::FALLING);//increment pulse count on falling edge
 }
 
 void loop(void) {
@@ -245,5 +285,13 @@ void loop(void) {
             break;
     }
 
+    updateWheelSpeed();
+    //static unsigned long lastRPMPrint = 0;
+    // if (millis() - lastRPMPrint >= 1000) {
+    //     lastRPMPrint = millis();
+
+    //     Serial.print("Wheel RPM: ");
+    //     Serial.println(wheelRPM);
+    // }
     delay(10);
 }
