@@ -124,6 +124,12 @@ constexpr uint8_t AIR_POSITIVE_PIN = 22;
 constexpr uint8_t AIR_NEGATIVE_PIN = 10;
 constexpr uint8_t PRECHARGE_PIN = 23;
 
+constexpr uint8_t CURRENT_SENSOR_PIN = 19;//given in the requirements, this is the pin for the current sensor
+
+constexpr float ADC_REFERENCE_VOLTAGE = 3.3f;//assume 3.3V reference voltage for the ADC
+constexpr float ADC_MAX_VALUE = 4095.0f;//assume 12-bit ADC
+constexpr float VOLTS_PER_AMP = 0.010f;//given in the requirements, this is the conversion factor for the current sensor
+
 // vechile state defined:
 enum class CarState { LV, TS, PRECHARGE, RTD };
 //initial state of the car is low voltage
@@ -179,6 +185,17 @@ extern float bms_get_voltage(uint8_t n);
 */
 extern float bms_get_temperature(uint8_t n);
 
+float readCurrent() {
+    int rawADC = analogRead(CURRENT_SENSOR_PIN);
+
+    float voltage =
+        (rawADC / ADC_MAX_VALUE) * ADC_REFERENCE_VOLTAGE;
+
+    float current = voltage / VOLTS_PER_AMP;
+
+    return current;
+}
+
 void setup(void) {
     Serial.begin(115200);
 
@@ -186,6 +203,9 @@ void setup(void) {
     pinMode(RTD_BUTTON_PIN, arduino::INPUT_PULLUP);
 
     currentState = CarState::LV;
+
+    pinMode(CURRENT_SENSOR_PIN, arduino::INPUT);
+    analogReadResolution(12);  //ADC max  is 12 bits
 }
 
 void loop(void) {
