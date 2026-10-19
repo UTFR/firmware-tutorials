@@ -25,7 +25,7 @@ relay.
 There is a TS On button and an RTD button on the dash that move the cars into
 those states. ie. When you press TS On the car goes TS, and when you press RTD,
 it goes to RTD. They are both active low, meaning when the button's are pressed,
-the voltage goes low.
+the voltage goes low. 
 
 We also have a few sensors that we need to be able to calculate how much torque
 to command:
@@ -115,6 +115,25 @@ clang-format as soon as possible and set it up :)
 /*
   Initialize the CAN peripheral with given RX and TX pins at a given baudrate.
 */
+
+// compiled time constants:
+constexpr uint8_t TS_BUTTON_PIN = 12;
+constexpr uint8_t RTD_BUTTON_PIN = 13;
+
+constexpr uint8_t AIR_POSITIVE_PIN = 22;
+constexpr uint8_t AIR_NEGATIVE_PIN = 10;
+constexpr uint8_t PRECHARGE_PIN = 23;
+
+// vechile state defined:
+enum class CarState { LV, TS, PRECHARGE, RTD };
+//initial state of the car is low voltage
+CarState currentState = CarState::LV;
+
+
+unsigned long prechargeStartTime = 0;
+
+constexpr unsigned long PRECHARGE_DURATION_MS = 5000; //approximately five seconds for precharge
+
 extern void can_init(uint8_t rx, uint8_t tx, uint32_t baudrate);
 
 /*
@@ -132,9 +151,8 @@ extern void can_receive(uint64_t *payload, uint8_t id);
   and Rear Right motors given current, wheelspeeds (in the same order), and a
   steering angle.
 */
-extern void calculate_torque_cmd(
-  float *torques, float current, float *wheelspeeds, float steering_angle
-);
+extern void calculate_torque_cmd(float *torques, float current,
+                                 float *wheelspeeds, float steering_angle);
 
 /*
   Initialize the LCD peripheral
@@ -161,6 +179,51 @@ extern float bms_get_voltage(uint8_t n);
 */
 extern float bms_get_temperature(uint8_t n);
 
-void setup(void) {}
+void setup(void) {
+    Serial.begin(115200);
 
-void loop(void) {}
+    pinMode(TS_BUTTON_PIN, arduino::INPUT_PULLUP);
+    pinMode(RTD_BUTTON_PIN, arduino::INPUT_PULLUP);
+
+    currentState = CarState::LV;
+}
+
+void loop(void) {
+    bool tsPressed =
+        (digitalRead(TS_BUTTON_PIN) == arduino::LOW);
+
+    bool rtdPressed =
+        (digitalRead(RTD_BUTTON_PIN) == arduino::LOW);
+
+    unsigned long now = millis();
+
+    switch (currentState) {
+
+        case CarState::LV:
+            if (tsPressed) {
+                currentState = CarState::PRECHARGE;
+                prechargeStartTime = now;
+                Serial.println("Starting simulated precharge");
+            }
+            break;
+
+        case CarState::PRECHARGE:
+            if (now - prechargeStartTime >= PRECHARGE_DURATION_MS) {
+                currentState = CarState::TS;
+                Serial.println("Simulated precharge complete");
+            }
+            break;
+
+        case CarState::TS:
+            if (rtdPressed) {
+                currentState = CarState::RTD;
+                Serial.println("Simulated Ready To Drive");
+            }
+            break;
+
+        case CarState::RTD:
+            break;
+    }
+
+    delay(10);
+}
