@@ -149,6 +149,16 @@ volatile uint32_t wheelPulseCount = 0;
 float wheelRPM = 0.0f;
 unsigned long lastWheelUpdate = 0;
 
+constexpr uint8_t CAN_RX_PIN = 2;
+constexpr uint8_t CAN_TX_PIN = 3;
+
+// not find, just for testing 
+constexpr uint32_t CAN_BAUDRATE = 500000;
+constexpr uint8_t STEERING_CAN_ID = 0x42;
+constexpr float STEERING_SCALE = 0.1f;
+
+float steeringAngle = 0.0f;
+
 void wheelSpeedISR() {
     wheelPulseCount++;
 }
@@ -233,6 +243,35 @@ float readCurrent() {
     return current;
 }
 
+float decodeSteeringAngle(uint64_t payload) {
+
+    // Extract the lowest 16 bits.
+    uint16_t rawValue =
+        static_cast<uint16_t>(payload & 0xFFFFu);//just assumed first 16 bits are encode of the steering angle, but this is not specified in the requirements
+
+    // Interpret as a signed 16-bit value.
+    int32_t signedValue = rawValue;
+
+    if (rawValue >= 0x8000u) { // 32768 in decimal which is 1000 0000 0000 0000. means negative direction
+        signedValue -= 65536;
+    }
+
+    // Convert integer units to degrees.
+    return signedValue * STEERING_SCALE;
+}
+
+//test
+// void testSteeringDecoder() {
+//     uint64_t simulatedPayload = 253;
+
+//     steeringAngle =
+//         decodeSteeringAngle(simulatedPayload);
+
+//     Serial.print("Steering Angle: ");
+//     Serial.print(steeringAngle);
+//     Serial.println(" degrees");
+// }
+
 void setup(void) {
     Serial.begin(115200);
 
@@ -246,7 +285,9 @@ void setup(void) {
 
     pinMode(WHEEL_SPEED_PIN, arduino::INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(WHEEL_SPEED_PIN), wheelSpeedISR, arduino::FALLING);//increment pulse count on falling edge
-}
+
+    testSteeringDecoder();//test
+  }
 
 void loop(void) {
     bool tsPressed =
