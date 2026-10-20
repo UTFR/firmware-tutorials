@@ -1,0 +1,226 @@
+{
+  "source_unchanged": true,
+  "source_sha256": {
+    "intro_project.cpp": "cbe0c7f4fc15889d1414fb6b40a456b1e1db40a38ff20363423bda9cb33f3e62"
+  },
+  "passed": 36,
+  "failed": 0,
+  "results": [
+    {
+      "mode": "original",
+      "test": "float_roundtrip",
+      "passed": true,
+      "output": "PASS float_roundtrip"
+    },
+    {
+      "mode": "original",
+      "test": "adc_endpoints",
+      "passed": true,
+      "output": "PASS adc_endpoints"
+    },
+    {
+      "mode": "original",
+      "test": "wheel_no_edges",
+      "passed": true,
+      "output": "PASS wheel_no_edges"
+    },
+    {
+      "mode": "original",
+      "test": "wheel_frequency",
+      "passed": true,
+      "output": "PASS wheel_frequency"
+    },
+    {
+      "mode": "original",
+      "test": "wheel_timeout",
+      "passed": true,
+      "output": "PASS wheel_timeout"
+    },
+    {
+      "mode": "original",
+      "test": "wheel_clock_wrap",
+      "passed": true,
+      "output": "PASS wheel_clock_wrap"
+    },
+    {
+      "mode": "original",
+      "test": "wheel_edge_at_zero",
+      "passed": true,
+      "output": "PASS wheel_edge_at_zero"
+    },
+    {
+      "mode": "original",
+      "test": "wheel_wrap_to_zero",
+      "passed": true,
+      "output": "PASS wheel_wrap_to_zero"
+    },
+    {
+      "mode": "original",
+      "test": "wheel_single_edge",
+      "passed": true,
+      "output": "PASS wheel_single_edge"
+    },
+    {
+      "mode": "original",
+      "test": "wheel_duplicate_edge",
+      "passed": true,
+      "output": "PASS wheel_duplicate_edge"
+    },
+    {
+      "mode": "original",
+      "test": "wheel_timeout_boundary",
+      "passed": true,
+      "output": "PASS wheel_timeout_boundary"
+    },
+    {
+      "mode": "original",
+      "test": "wheel_restart_after_timeout",
+      "passed": true,
+      "output": "PASS wheel_restart_after_timeout"
+    },
+    {
+      "mode": "original",
+      "test": "wheel_restart_across_wrap",
+      "passed": true,
+      "output": "PASS wheel_restart_across_wrap"
+    },
+    {
+      "mode": "original",
+      "test": "fault_latch",
+      "passed": true,
+      "output": "PASS fault_latch"
+    },
+    {
+      "mode": "original",
+      "test": "setup_library_gating",
+      "passed": true,
+      "output": "PASS setup_library_gating"
+    },
+    {
+      "mode": "original",
+      "test": "default_motor_inhibited",
+      "passed": true,
+      "output": "PASS default_motor_inhibited"
+    },
+    {
+      "mode": "original",
+      "test": "default_bms_fault",
+      "passed": true,
+      "output": "PASS default_bms_fault"
+    },
+    {
+      "mode": "original",
+      "test": "default_button_inhibited",
+      "passed": true,
+      "output": "PASS default_button_inhibited"
+    },
+    {
+      "mode": "original",
+      "test": "default_lcd_inhibited",
+      "passed": true,
+      "output": "PASS default_lcd_inhibited"
+    },
+    {
+      "mode": "configured_fixture",
+      "test": "motor_rtd",
+      "passed": true,
+      "output": "PASS motor_rtd"
+    },
+    {
+      "mode": "configured_fixture",
+      "test": "motor_lv",
+      "passed": true,
+      "output": "PASS motor_lv"
+    },
+    {
+      "mode": "configured_fixture",
+      "test": "motor_fault",
+      "passed": true,
+      "output": "PASS motor_fault"
+    },
+    {
+      "mode": "configured_fixture",
+      "test": "motor_nonfinite",
+      "passed": true,
+      "output": "PASS motor_nonfinite"
+    },
+    {
+      "mode": "configured_fixture",
+      "test": "bms_healthy",
+      "passed": true,
+      "output": "PASS bms_healthy"
+    },
+    {
+      "mode": "configured_fixture",
+      "test": "bms_boundaries",
+      "passed": true,
+      "output": "PASS bms_boundaries"
+    },
+    {
+      "mode": "configured_fixture",
+      "test": "bms_bad_low",
+      "passed": true,
+      "output": "PASS bms_bad_low"
+    },
+    {
+      "mode": "configured_fixture",
+      "test": "bms_bad_high",
+      "passed": true,
+      "output": "PASS bms_bad_high"
+    },
+    {
+      "mode": "configured_fixture",
+      "test": "bms_bad_hot",
+      "passed": true,
+      "output": "PASS bms_bad_hot"
+    },
+    {
+      "mode": "configured_fixture",
+      "test": "bms_bad_nan",
+      "passed": true,
+      "output": "PASS bms_bad_nan"
+    },
+    {
+      "mode": "configured_fixture",
+      "test": "bms_bad_inf",
+      "passed": true,
+      "output": "PASS bms_bad_inf"
+    },
+    {
+      "mode": "configured_fixture",
+      "test": "precharge_sequence",
+      "passed": true,
+      "output": "PASS precharge_sequence"
+    },
+    {
+      "mode": "configured_fixture",
+      "test": "bms_gate",
+      "passed": true,
+      "output": "PASS bms_gate"
+    },
+    {
+      "mode": "configured_fixture",
+      "test": "steering_valid",
+      "passed": true,
+      "output": "PASS steering_valid"
+    },
+    {
+      "mode": "configured_fixture",
+      "test": "steering_nan",
+      "passed": true,
+      "output": "PASS steering_nan"
+    },
+    {
+      "mode": "configured_fixture",
+      "test": "lcd_fault",
+      "passed": true,
+      "output": "PASS lcd_fault"
+    },
+    {
+      "mode": "configured_fixture",
+      "test": "setup_library_gating",
+      "passed": true,
+      "output": "PASS setup_library_gating"
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+--- a/intro_projects/zitong/intro_project.cpp
++++ b/intro_projects/zitong/intro_project.cpp
+@@ -25,7 +25,8 @@
+ 
+ // REQUIRED CONFIGURATION: the assignment does not supply these values.
+ // Replace them with validated values from the actual tutorial mock/protocol.
+-// Until then, CONFIGURED=false prevents energizing AIRs or sending commands.
++// Until then, CONFIGURED=false prevents energizing AIRs and all tutorial-library
++// calls, allowing a disabled build without the external tutorial library.
+ constexpr bool CONFIGURED = false;
+ constexpr uint8_t WHEEL_PINS[4] = {255, 255, 255, 255};
+ constexpr uint8_t CELL_COUNT = 0;
+@@ -60,11 +61,18 @@
+ 
+ static volatile uint32_t last_edge_us[4] = {};
+ static volatile uint32_t edge_period_us[4] = {};
++static volatile bool edge_seen[4] = {};
+ 
+ static void wheelEdge(uint8_t i) {
+     const uint32_t now = micros();
+     const uint32_t previous = last_edge_us[i];
+-    if (previous) edge_period_us[i] = now - previous;
++    const uint32_t elapsed = now - previous;
++    // Zero is a valid timestamp, including at micros() rollover. After a gap
++    // beyond the timeout, this edge starts a new pair rather than measuring
++    // a period that includes the stopped interval.
++    edge_period_us[i] = (edge_seen[i] && elapsed <= cfg::WHEEL_TIMEOUT_US)
++                            ? elapsed : 0;
++    edge_seen[i] = true;
+     last_edge_us[i] = now;
+ }
+ static void wheelFL() { wheelEdge(0); }
+@@ -104,7 +112,7 @@
+     interrupts();
+     const uint32_t now = micros();
+     for (uint8_t i = 0; i < 4; ++i) {
+-        rpm[i] = (!edges[i] || !periods[i] ||
++        rpm[i] = (!periods[i] ||
+                   (uint32_t)(now - edges[i]) > cfg::WHEEL_TIMEOUT_US)
+                      ? 0.0f : 60000000.0f / (17.0f * periods[i]);
+     }
+@@ -138,7 +146,7 @@
+         // Calculate only in RTD. Recheck the state immediately before sending:
+         // a BMS trip cannot race with this guarded transmission section.
+         xSemaphoreTake(state_mutex, portMAX_DELAY);
+-        if (!fault && state == State::RTD) {
++        if (cfg::CONFIGURED && !fault && state == State::RTD) {
+             calculate_torque_cmd(torques, current, rpm, steering);
+             for (float &t : torques) if (!isfinite(t)) t = 0.0f;
+         }
+@@ -254,6 +262,12 @@
+ static void lcdTask(void *) {
+     TickType_t wake = xTaskGetTickCount();
+     for (;;) {
++        // The LCD API belongs to the external tutorial library. In disabled
++        // builds it must not be referenced, just like the CAN and BMS APIs.
++        if (!cfg::CONFIGURED) {
++            vTaskDelayUntil(&wake, pdMS_TO_TICKS(100));
++            continue;
++        }
+         Measurements snapshot;
+         xSemaphoreTake(data_mutex, portMAX_DELAY);
+         snapshot = readings;
+@@ -312,9 +326,9 @@
+         for (uint8_t i = 0; i < 4; ++i)
+             attachInterrupt(digitalPinToInterrupt(cfg::WHEEL_PINS[i]),
+                             isrs[i], arduino::FALLING);
+-    }
+-    lcd_init(cfg::MOSI, cfg::MISO, cfg::SCK, cfg::LCD_CS);
+-    bms_init(cfg::MOSI, cfg::MISO, cfg::SCK, cfg::BMS_CS);
++        lcd_init(cfg::MOSI, cfg::MISO, cfg::SCK, cfg::LCD_CS);
++        bms_init(cfg::MOSI, cfg::MISO, cfg::SCK, cfg::BMS_CS);
++    }
+ 
+     if (xTaskCreate(motorTask, "Motor", 768, nullptr, 5, nullptr) != pdPASS ||
+         xTaskCreate(bmsTask, "BMS", 640, nullptr, 4, nullptr) != pdPASS ||

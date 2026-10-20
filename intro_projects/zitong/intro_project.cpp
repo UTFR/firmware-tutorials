@@ -1,338 +1,346 @@
+#include <Arduino.h>
 #include <arduino_freertos.h>
+#include <semphr.h>
 #include <stdint.h>
+#include <string.h>
+#include <math.h>
 
-/*
-The car has three possible functional states:
-1. Low Voltage (LV)
-2. Tractive System (TS)
-3. Ready to Drive (RTD)
-
-When in LV, the car cannot drive. When in TS, the car is energized, but still
-cannot drive. When in RTD, the car is energized and able to drive.
-
-There are two Accumulator Isolation Relays (AIRs) that connect the high voltage
-(HV) battery to the rest of the car. One is on the positive terminal, and the
-other on the negative terminal (AIR+ and AIR-). That is to say, the battery is
-disconnected unless we energize both relays, which is important for safety.
-Whenever we have a critical error, we can open these relays / de-energize them
-to make sure there is no HV outside the accumulator.
-
-When we go from LV -> TS, we cannot simply energize the relays (ask an
-electrical lead why!). Instead we first close AIR-, then another relay called
-the "Precharge Relay". After ~5 seconds we close AIR+ and open the precharge
-relay.
-
-There is a TS On button and an RTD button on the dash that move the cars into
-those states. ie. When you press TS On the car goes TS, and when you press RTD,
-it goes to RTD. They are both active low, meaning when the button's are pressed,
-the voltage goes low. 
-
-We also have a few sensors that we need to be able to calculate how much torque
-to command:
-
-1. Current sensor (How much current there is in the HV path)
-2. Wheelspeeds
-3. Steering Angle Sensor
-
-The current sensor is a Hall Effect sensor read by an ADC through GPIO pins. The
-conversion is: 1 amp per 10mV
-
-Wheelspeeds are a bit tricky. The sensor is routed to a GPIO pin, and is
-normally high. However, the wheels have a gear looking thing with 17 teeth --
-everytime one of the teeth passes the sensor, the voltage at the GPIO pin goes
-low. You can derive the RPM of the wheel from how often the voltage goes low.
-
-The steering angle sensor comes to us via CAN.
-
-We also have to monitor our battery to make sure nothing explodes or catches on
-fire... Thankfully we have a Battery Management System (BMS) that monitors cell
-voltages and temperatures and can send them to us. It sends this info via SPI.
-If any cell voltage goes below 2.8V or above 4.3V, de-energize the car. Also, if
-any temperature exceeds 60 degrees, de-energize.
-
-Finally, we have an LCD on the dash which is useful to display information. You
-should print all relevant info to the screen so we know what's going on with the
-car. This also operates via SPI.
-
-Mock library functions have been provided where necessary (marked with extern).
-
-NOTE - EXTREMELY IMPORTANT: the CAN methods `can_send` and `can_receive` are NOT
-thread safe.
-
-Also think about the implications of having two peripherals on one SPI bus.
-
-----------------------------
-
-Requirements:
-
-1. Command each motor with an appropriate torque every 1ms
-2. Print sensor values and torque values to the LCD every 100ms
-3. Monitor the highest/lowest voltage and highest temperature from the BMS and
-shutdown the car if there is any unsafe condition
-
-----------------------------
-
-Pins:
-
-TS On:          12
-RTD:            13
-Current Sensor: 19
-CAN RX:         2
-CAN TX:         3
-MOSI:           5
-MISO:           6
-SCK:            7
-LCD_CS:         8
-BMS_CS:         9
-AIR+:           22
-Precharge:      23
-AIR-:           10
-
-----------------------------
-
-"Submission" instructions. I want you all to get familiar with git, so we will
-do this project with git. The repo is
-https://github.com/UTFR/firmware-tutorials.
-
-If you still haven't joined the github organization, let me know and i'll add
-you. Clone the repository, and make a branch called `<your name>/intro_project`.
-Copy this file into the directory `intro_projects/<your name>` and make all your
-changes there.
-
-Whenever you add a feature, `git add` the files, and `git commit -m "..."` with
-a useful/descriptive message. Whenver you want your changes to be public, do
-`git push origin <your name>/intro_project`.
-
-Also, I won't enforce it for this project, but for the actual firmware repo we
-have a code formatter (clang-format). It means that everyone's code will look
-exactly the same, in terms of how much whitespace there is and other aesthetics
-like that. It's not there for aesthetics, but moreso so that you when people
-make changes you can see exactly what they changed, whereas without a formatter,
-you end up with lots of useless formatting changes. You should install
-clang-format as soon as possible and set it up :)
-*/
-
-/*
-  Initialize the CAN peripheral with given RX and TX pins at a given baudrate.
-*/
-
-// compiled time constants:
-constexpr uint8_t TS_BUTTON_PIN = 12;
-constexpr uint8_t RTD_BUTTON_PIN = 13;
-
-constexpr uint8_t AIR_POSITIVE_PIN = 22;
-constexpr uint8_t AIR_NEGATIVE_PIN = 10;
-constexpr uint8_t PRECHARGE_PIN = 23;
-
-constexpr uint8_t CURRENT_SENSOR_PIN = 19;//given in the requirements, this is the pin for the current sensor
-
-constexpr float ADC_REFERENCE_VOLTAGE = 3.3f;//assume 3.3V reference voltage for the ADC
-constexpr float ADC_MAX_VALUE = 4095.0f;//assume 12-bit ADC
-constexpr float VOLTS_PER_AMP = 0.010f;//given in the requirements, this is the conversion factor for the current sensor
-
-// vechile state defined:
-enum class CarState { LV, TS, PRECHARGE, RTD };
-//initial state of the car is low voltage
-CarState currentState = CarState::LV;
-
-unsigned long prechargeStartTime = 0;
-constexpr unsigned long PRECHARGE_DURATION_MS = 5000; //approximately five seconds for precharge
-
-
-constexpr uint8_t WHEEL_SPEED_PIN = 14; //assume the wheel speed sensor is connected to pin 14
-constexpr uint8_t TEETH_PER_REVOLUTION = 17;
-
-// Updated by the interrupt handler
-volatile uint32_t wheelPulseCount = 0;
-
-// Most recently calculated RPM
-float wheelRPM = 0.0f;
-unsigned long lastWheelUpdate = 0;
-
-constexpr uint8_t CAN_RX_PIN = 2;
-constexpr uint8_t CAN_TX_PIN = 3;
-
-// not find, just for testing 
-constexpr uint32_t CAN_BAUDRATE = 500000;
-constexpr uint8_t STEERING_CAN_ID = 0x42;
-constexpr float STEERING_SCALE = 0.1f;
-
-float steeringAngle = 0.0f;
-
-void wheelSpeedISR() {
-    wheelPulseCount++;
-}
-
-void updateWheelSpeed() {
-    unsigned long now = millis();
-    unsigned long elapsed = now - lastWheelUpdate;
-
-    if (elapsed < 100) {
-        return;
-    }
-
-    // Protect the pulse count while copying and resetting.
-    noInterrupts();
-
-    uint32_t pulses = wheelPulseCount;
-    wheelPulseCount = 0;
-
-    interrupts();
-
-    // 60,000 converts milliseconds to minutes.
-    wheelRPM =
-        (pulses * 60000.0f) /
-        (TEETH_PER_REVOLUTION * elapsed);
-
-    lastWheelUpdate = now;
-}
-
+// Functions supplied by the tutorial mock library. Do not reimplement these.
 extern void can_init(uint8_t rx, uint8_t tx, uint32_t baudrate);
-
-/*
-  Send a CAN message with a given id.
-  The 8 byte payload is encoded as a uint64_t
-*/
 extern void can_send(uint8_t id, uint64_t payload);
-/*
-  Receive a CAN message with a given id into a uint64_t
-*/
 extern void can_receive(uint64_t *payload, uint8_t id);
-
-/*
-  Calculates four torques, in order, for the Front Left, Front Right, Rear Left,
-  and Rear Right motors given current, wheelspeeds (in the same order), and a
-  steering angle.
-*/
 extern void calculate_torque_cmd(float *torques, float current,
                                  float *wheelspeeds, float steering_angle);
-
-/*
-  Initialize the LCD peripheral
-*/
-extern void lcd_init(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t lcs_cs);
-
-/*
-  Print something to the LCD
-*/
+extern void lcd_init(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t lcd_cs);
 extern void lcd_printf(const char *fmt, ...);
-
-/*
-  Initialize the BMS
-*/
-extern void bms_init(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t lcs_cs);
-
-/*
-  Get voltage of the nth cell in the battery
-*/
+extern void bms_init(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t bms_cs);
 extern float bms_get_voltage(uint8_t n);
-
-/*
-  Get temperature of the nth cell in the battery
-*/
 extern float bms_get_temperature(uint8_t n);
 
-float readCurrent() {
-    int rawADC = analogRead(CURRENT_SENSOR_PIN);
+namespace cfg {
+constexpr uint8_t TS_BUTTON = 12, RTD_BUTTON = 13, CURRENT_ADC = 19;
+constexpr uint8_t CAN_RX = 2, CAN_TX = 3;
+constexpr uint8_t MOSI = 5, MISO = 6, SCK = 7, LCD_CS = 8, BMS_CS = 9;
+constexpr uint8_t AIR_PLUS = 22, PRECHARGE = 23, AIR_MINUS = 10;
 
-    float voltage =
-        (rawADC / ADC_MAX_VALUE) * ADC_REFERENCE_VOLTAGE;
+// REQUIRED CONFIGURATION: the assignment does not supply these values.
+// Replace them with validated values from the actual tutorial mock/protocol.
+// Until then, CONFIGURED=false prevents energizing AIRs and all tutorial-library
+// calls, allowing a disabled build without the external tutorial library.
+constexpr bool CONFIGURED = false;
+constexpr uint8_t WHEEL_PINS[4] = {255, 255, 255, 255};
+constexpr uint8_t CELL_COUNT = 0;
+constexpr uint32_t CAN_BAUD = 0;
+constexpr uint8_t STEERING_ID = 0, MOTOR_IDS[4] = {0, 0, 0, 0};
 
-    float current = voltage / VOLTS_PER_AMP;
-
-    return current;
+constexpr float ADC_REFERENCE_V = 3.3f;
+constexpr float CURRENT_ZERO_V = 0.0f; // Must be calibrated for actual Hall sensor.
+constexpr uint32_t WHEEL_TIMEOUT_US = 500000;
+constexpr uint32_t PRECHARGE_MS = 5000;
 }
 
-float decodeSteeringAngle(uint64_t payload) {
+static_assert(configTICK_RATE_HZ >= 1000,
+              "A 1 ms FreeRTOS task requires a tick rate of at least 1000 Hz");
 
-    // Extract the lowest 16 bits.
-    uint16_t rawValue =
-        static_cast<uint16_t>(payload & 0xFFFFu);//just assumed first 16 bits are encode of the steering angle, but this is not specified in the requirements
+static_assert(sizeof(float) == 4, "CAN packing assumes 32-bit float");
 
-    // Interpret as a signed 16-bit value.
-    int32_t signedValue = rawValue;
+enum class State : uint8_t { LV, PRECHARGE, TS, RTD };
+struct Measurements {
+    float current = 0, steering = 0;
+    float rpm[4] = {}, torque[4] = {};
+    float vmin = NAN, vmax = NAN, tmax = NAN;
+};
 
-    if (rawValue >= 0x8000u) { // 32768 in decimal which is 1000 0000 0000 0000. means negative direction
-        signedValue -= 65536;
+static Measurements readings;
+static State state = State::LV;
+static bool bms_healthy = false, fault = false;
+static SemaphoreHandle_t data_mutex = nullptr;
+static SemaphoreHandle_t state_mutex = nullptr;
+static SemaphoreHandle_t can_mutex = nullptr;
+static SemaphoreHandle_t spi_mutex = nullptr;
+
+static volatile uint32_t last_edge_us[4] = {};
+static volatile uint32_t edge_period_us[4] = {};
+static volatile bool edge_seen[4] = {};
+
+static void wheelEdge(uint8_t i) {
+    const uint32_t now = micros();
+    const uint32_t previous = last_edge_us[i];
+    const uint32_t elapsed = now - previous;
+    // Zero is a valid timestamp, including at micros() rollover. After a gap
+    // beyond the timeout, this edge starts a new pair rather than measuring
+    // a period that includes the stopped interval.
+    edge_period_us[i] = (edge_seen[i] && elapsed <= cfg::WHEEL_TIMEOUT_US)
+                            ? elapsed : 0;
+    edge_seen[i] = true;
+    last_edge_us[i] = now;
+}
+static void wheelFL() { wheelEdge(0); }
+static void wheelFR() { wheelEdge(1); }
+static void wheelRL() { wheelEdge(2); }
+static void wheelRR() { wheelEdge(3); }
+
+static void openRelays() {
+    digitalWrite(cfg::AIR_PLUS, arduino::LOW);
+    digitalWrite(cfg::PRECHARGE, arduino::LOW);
+    digitalWrite(cfg::AIR_MINUS, arduino::LOW);
+}
+
+// state_mutex is the serialization point for relay changes and CAN torque
+// transmissions. Callers must hold it before modifying state or transmitting.
+static void tripFault() {
+    xSemaphoreTake(state_mutex, portMAX_DELAY);
+    fault = true; // Latched until reboot.
+    state = State::LV;
+    openRelays();
+    xSemaphoreGive(state_mutex);
+}
+
+static float readCurrent() {
+    const float volts = analogRead(cfg::CURRENT_ADC) *
+                        (cfg::ADC_REFERENCE_V / 4095.0f);
+    return (volts - cfg::CURRENT_ZERO_V) * 100.0f; // 1 A / 10 mV
+}
+
+static void readWheelRPM(float *rpm) {
+    uint32_t periods[4], edges[4];
+    noInterrupts();
+    for (uint8_t i = 0; i < 4; ++i) {
+        periods[i] = edge_period_us[i];
+        edges[i] = last_edge_us[i];
+    }
+    interrupts();
+    const uint32_t now = micros();
+    for (uint8_t i = 0; i < 4; ++i) {
+        rpm[i] = (!periods[i] ||
+                  (uint32_t)(now - edges[i]) > cfg::WHEEL_TIMEOUT_US)
+                     ? 0.0f : 60000000.0f / (17.0f * periods[i]);
+    }
+}
+
+// Tutorial specifies uint64_t CAN payload but no wire encoding.
+// This is a PLACEHOLDER protocol, not a verified UTFR CAN format.
+static uint64_t encodeFloat(float number) {
+    uint32_t bits;
+    memcpy(&bits, &number, sizeof(bits));
+    return static_cast<uint64_t>(bits);
+}
+static float decodeFloat(uint64_t payload) {
+    uint32_t bits = static_cast<uint32_t>(payload);
+    float value;
+    memcpy(&value, &bits, sizeof(value));
+    return value;
+}
+
+static void motorTask(void *) {
+    TickType_t wake = xTaskGetTickCount();
+    const TickType_t period = pdMS_TO_TICKS(1);
+    for (;;) {
+        float rpm[4], torques[4] = {};
+        const float current = readCurrent();
+        readWheelRPM(rpm);
+        xSemaphoreTake(data_mutex, portMAX_DELAY);
+        const float steering = readings.steering;
+        xSemaphoreGive(data_mutex);
+
+        // Calculate only in RTD. Recheck the state immediately before sending:
+        // a BMS trip cannot race with this guarded transmission section.
+        xSemaphoreTake(state_mutex, portMAX_DELAY);
+        if (cfg::CONFIGURED && !fault && state == State::RTD) {
+            calculate_torque_cmd(torques, current, rpm, steering);
+            for (float &t : torques) if (!isfinite(t)) t = 0.0f;
+        }
+        if (cfg::CONFIGURED) {
+            xSemaphoreTake(can_mutex, portMAX_DELAY);
+            for (uint8_t i = 0; i < 4; ++i)
+                can_send(cfg::MOTOR_IDS[i], encodeFloat(torques[i]));
+            xSemaphoreGive(can_mutex);
+        }
+        xSemaphoreGive(state_mutex);
+
+        xSemaphoreTake(data_mutex, portMAX_DELAY);
+        readings.current = current;
+        for (uint8_t i = 0; i < 4; ++i) {
+            readings.rpm[i] = rpm[i];
+            readings.torque[i] = torques[i];
+        }
+        xSemaphoreGive(data_mutex);
+        vTaskDelayUntil(&wake, period);
+    }
+}
+
+static void steeringTask(void *) {
+    TickType_t wake = xTaskGetTickCount();
+    for (;;) {
+        if (cfg::CONFIGURED) {
+            uint64_t payload = 0;
+            // The mock API exposes no receive-success indication.
+            // It must be confirmed to be nonblocking and to supply valid data.
+            xSemaphoreTake(can_mutex, portMAX_DELAY);
+            can_receive(&payload, cfg::STEERING_ID);
+            xSemaphoreGive(can_mutex);
+            float angle = decodeFloat(payload);
+            if (isfinite(angle)) {
+                xSemaphoreTake(data_mutex, portMAX_DELAY);
+                readings.steering = angle;
+                xSemaphoreGive(data_mutex);
+            }
+        }
+        vTaskDelayUntil(&wake, pdMS_TO_TICKS(5));
+    }
+}
+
+static void bmsTask(void *) {
+    TickType_t wake = xTaskGetTickCount();
+    for (;;) {
+        bool bad = !cfg::CONFIGURED || cfg::CELL_COUNT == 0;
+        float vmin = INFINITY, vmax = -INFINITY, tmax = -INFINITY;
+        if (!bad) {
+            xSemaphoreTake(spi_mutex, portMAX_DELAY);
+            for (uint8_t i = 0; i < cfg::CELL_COUNT; ++i) {
+                const float v = bms_get_voltage(i);
+                const float t = bms_get_temperature(i);
+                if (!isfinite(v) || !isfinite(t) ||
+                    v < 2.8f || v > 4.3f || t > 60.0f) {
+                    bad = true;
+                    break; // Stop scanning promptly on an unsafe reading.
+                }
+                if (v < vmin) vmin = v;
+                if (v > vmax) vmax = v;
+                if (t > tmax) tmax = t;
+            }
+            xSemaphoreGive(spi_mutex);
+        }
+        if (bad) tripFault();
+        else {
+            xSemaphoreTake(state_mutex, portMAX_DELAY);
+            if (!fault) bms_healthy = true;
+            xSemaphoreGive(state_mutex);
+        }
+        xSemaphoreTake(data_mutex, portMAX_DELAY);
+        readings.vmin = bad ? NAN : vmin;
+        readings.vmax = bad ? NAN : vmax;
+        readings.tmax = bad ? NAN : tmax;
+        xSemaphoreGive(data_mutex);
+        vTaskDelayUntil(&wake, pdMS_TO_TICKS(50));
+    }
+}
+
+static void stateTask(void *) {
+    TickType_t wake = xTaskGetTickCount();
+    bool previousTS = arduino::HIGH, previousRTD = arduino::HIGH;
+    TickType_t prechargeStart = 0;
+    for (;;) {
+        const bool ts = digitalRead(cfg::TS_BUTTON);
+        const bool rtd = digitalRead(cfg::RTD_BUTTON);
+        const bool tsPressed = previousTS == arduino::HIGH && ts == arduino::LOW;
+        const bool rtdPressed = previousRTD == arduino::HIGH && rtd == arduino::LOW;
+        previousTS = ts;
+        previousRTD = rtd;
+        xSemaphoreTake(state_mutex, portMAX_DELAY);
+        if (!fault && bms_healthy && cfg::CONFIGURED) {
+            if (state == State::LV && tsPressed) {
+                digitalWrite(cfg::AIR_MINUS, arduino::HIGH);
+                digitalWrite(cfg::PRECHARGE, arduino::HIGH);
+                prechargeStart = xTaskGetTickCount();
+                state = State::PRECHARGE;
+            } else if (state == State::PRECHARGE &&
+                       (xTaskGetTickCount() - prechargeStart) >=
+                           pdMS_TO_TICKS(cfg::PRECHARGE_MS)) {
+                digitalWrite(cfg::AIR_PLUS, arduino::HIGH);
+                digitalWrite(cfg::PRECHARGE, arduino::LOW);
+                state = State::TS;
+            } else if (state == State::TS && rtdPressed) {
+                state = State::RTD;
+            }
+        }
+        xSemaphoreGive(state_mutex);
+        vTaskDelayUntil(&wake, pdMS_TO_TICKS(10));
+    }
+}
+
+static void lcdTask(void *) {
+    TickType_t wake = xTaskGetTickCount();
+    for (;;) {
+        // The LCD API belongs to the external tutorial library. In disabled
+        // builds it must not be referenced, just like the CAN and BMS APIs.
+        if (!cfg::CONFIGURED) {
+            vTaskDelayUntil(&wake, pdMS_TO_TICKS(100));
+            continue;
+        }
+        Measurements snapshot;
+        xSemaphoreTake(data_mutex, portMAX_DELAY);
+        snapshot = readings;
+        xSemaphoreGive(data_mutex);
+        xSemaphoreTake(state_mutex, portMAX_DELAY);
+        State s = state;
+        bool failed = fault;
+        xSemaphoreGive(state_mutex);
+        const char *label = failed ? "FAULT" :
+            s == State::RTD ? "RTD" : s == State::TS ? "TS" :
+            s == State::PRECHARGE ? "PRECHARGE" : "LV";
+        xSemaphoreTake(spi_mutex, portMAX_DELAY);
+        lcd_printf("State: %s\n", label);
+        lcd_printf("Current: %.2f A  Steering: %.2f\n",
+                   snapshot.current, snapshot.steering);
+        lcd_printf("RPM FL/FR/RL/RR: %.1f %.1f %.1f %.1f\n",
+                   snapshot.rpm[0], snapshot.rpm[1],
+                   snapshot.rpm[2], snapshot.rpm[3]);
+        lcd_printf("TQ FL/FR/RL/RR: %.2f %.2f %.2f %.2f\n",
+                   snapshot.torque[0], snapshot.torque[1],
+                   snapshot.torque[2], snapshot.torque[3]);
+        lcd_printf("BMS min/max V: %.2f %.2f  Tmax: %.1f C\n",
+                   snapshot.vmin, snapshot.vmax, snapshot.tmax);
+        xSemaphoreGive(spi_mutex);
+        vTaskDelayUntil(&wake, pdMS_TO_TICKS(100));
+    }
+}
+
+void setup() {
+    // Set relay output latches low before enabling GPIO outputs.
+    digitalWrite(cfg::AIR_PLUS, arduino::LOW);
+    digitalWrite(cfg::AIR_MINUS, arduino::LOW);
+    digitalWrite(cfg::PRECHARGE, arduino::LOW);
+    pinMode(cfg::AIR_PLUS, arduino::OUTPUT);
+    pinMode(cfg::AIR_MINUS, arduino::OUTPUT);
+    pinMode(cfg::PRECHARGE, arduino::OUTPUT);
+    openRelays();
+    pinMode(cfg::TS_BUTTON, arduino::INPUT_PULLUP);
+    pinMode(cfg::RTD_BUTTON, arduino::INPUT_PULLUP);
+    pinMode(cfg::CURRENT_ADC, arduino::INPUT);
+    analogReadResolution(12);
+
+    can_mutex = xSemaphoreCreateMutex();
+    spi_mutex = xSemaphoreCreateMutex();
+    data_mutex = xSemaphoreCreateMutex();
+    state_mutex = xSemaphoreCreateMutex();
+    if (!can_mutex || !spi_mutex || !data_mutex || !state_mutex) {
+        openRelays();
+        while (true) {}
     }
 
-    // Convert integer units to degrees.
-    return signedValue * STEERING_SCALE;
-}
-
-//test
-// void testSteeringDecoder() {
-//     uint64_t simulatedPayload = 253;
-
-//     steeringAngle =
-//         decodeSteeringAngle(simulatedPayload);
-
-//     Serial.print("Steering Angle: ");
-//     Serial.print(steeringAngle);
-//     Serial.println(" degrees");
-// }
-
-void setup(void) {
-    Serial.begin(115200);
-
-    pinMode(TS_BUTTON_PIN, arduino::INPUT_PULLUP);
-    pinMode(RTD_BUTTON_PIN, arduino::INPUT_PULLUP);
-
-    currentState = CarState::LV;
-
-    pinMode(CURRENT_SENSOR_PIN, arduino::INPUT);
-    analogReadResolution(12);  //ADC max  is 12 bits
-
-    pinMode(WHEEL_SPEED_PIN, arduino::INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(WHEEL_SPEED_PIN), wheelSpeedISR, arduino::FALLING);//increment pulse count on falling edge
-
-    testSteeringDecoder();//test
-  }
-
-void loop(void) {
-    bool tsPressed =
-        (digitalRead(TS_BUTTON_PIN) == arduino::LOW);
-
-    bool rtdPressed =
-        (digitalRead(RTD_BUTTON_PIN) == arduino::LOW);
-
-    unsigned long now = millis();
-
-    switch (currentState) {
-
-        case CarState::LV:
-            if (tsPressed) {
-                currentState = CarState::PRECHARGE;
-                prechargeStartTime = now;
-                Serial.println("Starting simulated precharge");
-            }
-            break;
-
-        case CarState::PRECHARGE:
-            if (now - prechargeStartTime >= PRECHARGE_DURATION_MS) {
-                currentState = CarState::TS;
-                Serial.println("Simulated precharge complete");
-            }
-            break;
-
-        case CarState::TS:
-            if (rtdPressed) {
-                currentState = CarState::RTD;
-                Serial.println("Simulated Ready To Drive");
-            }
-            break;
-
-        case CarState::RTD:
-            break;
+    if (cfg::CONFIGURED) {
+        can_init(cfg::CAN_RX, cfg::CAN_TX, cfg::CAN_BAUD);
+        for (uint8_t i = 0; i < 4; ++i) pinMode(cfg::WHEEL_PINS[i], arduino::INPUT_PULLUP);
+        void (*isrs[4])() = {wheelFL, wheelFR, wheelRL, wheelRR};
+        for (uint8_t i = 0; i < 4; ++i)
+            attachInterrupt(digitalPinToInterrupt(cfg::WHEEL_PINS[i]),
+                            isrs[i], arduino::FALLING);
+        lcd_init(cfg::MOSI, cfg::MISO, cfg::SCK, cfg::LCD_CS);
+        bms_init(cfg::MOSI, cfg::MISO, cfg::SCK, cfg::BMS_CS);
     }
 
-    updateWheelSpeed();
-    //static unsigned long lastRPMPrint = 0;
-    // if (millis() - lastRPMPrint >= 1000) {
-    //     lastRPMPrint = millis();
-
-    //     Serial.print("Wheel RPM: ");
-    //     Serial.println(wheelRPM);
-    // }
-    delay(10);
+    if (xTaskCreate(motorTask, "Motor", 768, nullptr, 5, nullptr) != pdPASS ||
+        xTaskCreate(bmsTask, "BMS", 640, nullptr, 4, nullptr) != pdPASS ||
+        xTaskCreate(stateTask, "State", 384, nullptr, 3, nullptr) != pdPASS ||
+        xTaskCreate(steeringTask, "CAN-RX", 384, nullptr, 2, nullptr) != pdPASS ||
+        xTaskCreate(lcdTask, "LCD", 768, nullptr, 1, nullptr) != pdPASS) {
+        openRelays();
+        while (true) {}
+    }
+    vTaskStartScheduler();
+    openRelays();
+    while (true) {}
 }
+
+void loop() {}
