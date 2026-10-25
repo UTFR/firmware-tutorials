@@ -1,5 +1,6 @@
 #include <arduino_freertos.h>
 #include <stdint.h>
+#include <semphr.h>
 
 /*
 The car has three possible functional states:
@@ -161,6 +162,68 @@ extern float bms_get_voltage(uint8_t n);
 */
 extern float bms_get_temperature(uint8_t n);
 
-void setup(void) {}
+// Pins
 
+#define TS_ON_PIN 12
+#define RTD_PIN 13
+#define CURRENT_PIN 19
+#define CAN_RX_PIN 2
+#define CAN_TX_PIN 3
+#define MOSI_PIN 5
+#define MISO_PIN 6
+#define SCK_PIN 7
+#define LCD_CS_PIN 8
+#define BMS_CS_PIN 9
+#define AIR_PLUS_PIN 22
+#define PRECHARGE_PIN 23
+#define AIR_MINUS_PIN 10
+
+//TODO: confirm with lead - wheelspeed pins are not in the spec, so 14-17 were chosen arbitrarily
+#define WHEEL_FL_PIN 14
+#define WHEEL_FR_PIN 15
+#define WHEEL_RL_PIN 16
+#define WHEEL_RR_PIN 17
+
+// Task periods (ms)
+#define TORQUE_PERIOD_MS 1
+#define BMS_PERIOD_MS 100
+#define STATE_PERIOD_MS 50
+#define LCD_PERIOD_MS 100
+
+// Task priorities
+#define TORQUE_PRIORITY (tskIDLE_PRIORITY + 4)
+#define BMS_PRIORITY (tskIDLE_PRIORITY + 3)
+#define STATE_PRIORITY (tskIDLE_PRIORITY + 2)
+#define LCD_PRIORITY (tskIDLE_PRIORITY + 1)
+
+// Tasks stack size (words)
+#define TASK_STACK_DEPTH 1024
+
+//TODO: confirm with lead - baudrate not in the spec
+#define CAN_BAUDRATE 500000
+
+//Shared resources
+SemaphoreHandle_t spi_mutex; //protects the SPI bus (shared by LCD + BMS)
+SemaphoreHandle_t data_mutex; //protects shared sensor / torque  / BMS values
+
+void setup(void) {
+  //Relays: outputs, forced OPEN (LOW) first so HV stays inside the accumulator
+  pinMode(AIR_PLUS_PIN, arduino::OUTPUT);
+  digitalWrite(AIR_PLUS_PIN, arduino::LOW);
+  pinMode(AIR_MINUS_PIN, arduino::OUTPUT);
+  digitalWrite(AIR_MINUS_PIN, arduino::LOW);
+  pinMode(PRECHARGE_PIN, arduino::OUTPUT);
+  digitalWrite(PRECHARGE_PIN, arduino::LOW);
+
+  //Dash buttons: active low, so use the internal pull-up resistor
+  pinMode(TS_ON_PIN, arduino::INPUT_PULLUP);
+  pinMode(RTD_PIN, arduino::INPUT_PULLUP);
+
+  // Wheelspeed sensors: normally high, pulled low each time a tooth passes
+  pinMode(WHEEL_FL_PIN, arduino::INPUT_PULLUP);
+  pinMode(WHEEL_FR_PIN, arduino::INPUT_PULLUP);
+  pinMode(WHEEL_RL_PIN, arduino::INPUT_PULLUP);
+  pinMode(WHEEL_RR_PIN, arduino::INPUT_PULLUP);
+ 
+}
 void loop(void) {}
