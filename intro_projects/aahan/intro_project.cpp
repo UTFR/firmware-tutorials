@@ -225,5 +225,26 @@ void setup(void) {
   pinMode(WHEEL_RL_PIN, arduino::INPUT_PULLUP);
   pinMode(WHEEL_RR_PIN, arduino::INPUT_PULLUP);
  
+  // Peripherals (CAN, plus LCD, and BMS sharing one SPI bus)
+  can_init(CAN_RX_PIN, CAN_TX_PIN, CAN_BAUDRATE);
+  lcd_init(MOSI_PIN, MISO_PIN, SCK_PIN, LCD_CS_PIN);
+  bms_init(MOSI_PIN, MISO_PIN, SCK_PIN, BMS_CS_PIN);
+
+  // Mutexes: must exist before any task that uses them is created
+  spi_mutex = xSemaphoreCreateMutex();
+  data_mutex = xSemaphoreCreateMutex();
+
+  // If a mutex couldn't be created, stop here. The relays are already open,
+  // so halting is the safe way to fail.
+  if (spi_mutex == NULL || data_mutex == NULL) {
+    for (;;) {}
+  }
+
+  // TODO: attach wheelspeed interrupts (build step 4)
+  // TODO: create tasks (build steps 2-6)
+
+  vTaskStartScheduler();   // hands control to FreeRTOS; never returns
+
+  
 }
 void loop(void) {}
