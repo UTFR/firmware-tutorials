@@ -206,6 +206,80 @@ extern float bms_get_temperature(uint8_t n);
 SemaphoreHandle_t spi_mutex; //protects the SPI bus (shared by LCD + BMS)
 SemaphoreHandle_t data_mutex; //protects shared sensor / torque  / BMS values
 
+// Precharge duration before closing AIR+
+#define PRECHARGE_TIME_MS 5000
+
+// Car state - written ONLY by the state machine task
+enum class CarState { LV, PRECHARGING, TS, RTD, FAULT };
+volatile CarState car_state = CarState::LV;
+
+// BMS fault flag - set ONLY by the BMS task, never cleared (latching)
+volatile bool bms_fault = false;
+
+// Opens every relay. Safe to call at any time, in any state.
+static void open_all_relays(void) {
+  digitalWrite(AIR_PLUS_PIN, arduino::LOW);
+  digitalWrite(AIR_MINUS_PIN, arduino::LOW);
+  digitalWrite(PRECHARGE_PIN, arduino::LOW);
+}
+
+// The ONLY task allowed to change car_state or touch the relays.
+static void state_machine_task(void *p) {
+  TickType_t last_wake = xTaskGetTickCount();
+  TickType_t precharge_start = 0;
+  // Start as "pressed" so a button held at power-on doesn't count as a press
+  bool rtd_was_pressed = true;
+
+  for (;;) {
+    // 1. Fault check ALWAYS comes first
+    if (bms_fault) {
+      open_all_relays();
+      car_state = CarState::FAULT;
+    }
+
+    // 2. State transitions (buttons are active low: pressed == LOW)
+    bool ts_pressed = (digitalRead(TS_ON_PIN) == arduino::LOW);
+    bool rtd_pressed = (digitalRead(RTD_PIN) == arduino::LOW);
+    // Edge detection: only a fresh press (released -> pressed) counts
+    bool rtd_new_press = rtd_pressed && !rtd_was_pressed;
+
+    switch (car_state) {
+      case CarState::LV:
+        if (ts_pressed) {
+          digitalWrite(AIR_MINUS_PIN, arduino::HIGH);
+          digitalWrite(PRECHARGE_PIN, arduino::HIGH);
+          precharge_start = xTaskGetTickCount();
+          car_state = CarState::PRECHARGING;
+        }
+        break;
+
+      case CarState::PRECHARGING:
+        if (xTaskGetTickCount() - precharge_start >= pdMS_TO_TICKS(PRECHARGE_TIME_MS)) {
+          digitalWrite(AIR_PLUS_PIN, arduino::HIGH);
+          digitalWrite(PRECHARGE_PIN, arduino::LOW);
+          car_state = CarState::TS;
+        }
+        break;
+
+      case CarState::TS:
+        if (rtd_new_press) {
+          car_state = CarState::RTD;
+        }
+        break;
+
+      case CarState::RTD:
+      case CarState::FAULT:
+        break;  // RTD only leaves on a fault; FAULT is latched forever
+    }
+
+    rtd_was_pressed = rtd_pressed;  // remember the button for next loop
+
+    vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(STATE_PERIOD_MS));
+  }
+}
+
+
+
 void setup(void) {
   //Relays: outputs, forced OPEN (LOW) first so HV stays inside the accumulator
   pinMode(AIR_PLUS_PIN, arduino::OUTPUT);
@@ -241,7 +315,8 @@ void setup(void) {
   }
 
   // TODO: attach wheelspeed interrupts (build step 4)
-  // TODO: create tasks (build steps 2-6)
+  xTaskCreate(state_machine_task, "state", TASK_STACK_DEPTH, NULL, STATE_PRIORITY, NULL);
+  // TODO: create torque, bms, lcd tasks
 
   vTaskStartScheduler();   // hands control to FreeRTOS; never returns
 
