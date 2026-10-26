@@ -216,6 +216,18 @@ volatile CarState car_state = CarState::LV;
 // BMS fault flag - set ONLY by the BMS task, never cleared (latching)
 volatile bool bms_fault = false;
 
+// Values shared between tasks - ONLY read or write while holding data_mutex
+struct CarData {
+  float current;          // HV current (A)
+  float wheelspeeds[4];   // RPM, order FL, FR, RL, RR
+  float steering_angle;   // degrees
+  float torques[4];       // torque commands, order FL, FR, RL, RR
+  float min_cell_v;       // lowest cell voltage (V)
+  float max_cell_v;       // highest cell voltage (V)
+  float max_cell_t;       // highest cell temperature (C)
+};
+CarData shared_data = {};
+
 // Opens every relay. Safe to call at any time, in any state.
 static void open_all_relays(void) {
   digitalWrite(AIR_PLUS_PIN, arduino::LOW);
