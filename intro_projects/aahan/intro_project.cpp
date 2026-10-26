@@ -541,10 +541,20 @@ void setup(void) {
   attachInterrupt(digitalPinToInterrupt(WHEEL_RL_PIN), wheel_rl_isr, arduino::FALLING);
   attachInterrupt(digitalPinToInterrupt(WHEEL_RR_PIN), wheel_rr_isr, arduino::FALLING);
 
-  xTaskCreate(state_machine_task, "state", TASK_STACK_DEPTH, NULL, STATE_PRIORITY, NULL);
-  xTaskCreate(bms_task, "bms", TASK_STACK_DEPTH, NULL, BMS_PRIORITY, NULL);
-  xTaskCreate(torque_task, "torque", TASK_STACK_DEPTH, NULL, TORQUE_PRIORITY, NULL);
-  xTaskCreate(lcd_task, "lcd", TASK_STACK_DEPTH, NULL, LCD_PRIORITY, NULL);
+  // If any task couldn't be created, halt here - relays are already open,
+  // and running without (say) the BMS task would be unsafe.
+  if (xTaskCreate(state_machine_task, "State", TASK_STACK_DEPTH, NULL, STATE_PRIORITY, NULL) != pdPASS) {
+    for (;;) {}
+  }
+  if (xTaskCreate(bms_task, "BMS", TASK_STACK_DEPTH, NULL, BMS_PRIORITY, NULL) != pdPASS) {
+    for (;;) {}
+  }
+  if (xTaskCreate(torque_task, "Torque", TASK_STACK_DEPTH, NULL, TORQUE_PRIORITY, NULL) != pdPASS) {
+    for (;;) {}
+  }
+  if (xTaskCreate(lcd_task, "LCD", TASK_STACK_DEPTH, NULL, LCD_PRIORITY, NULL) != pdPASS) {
+    for (;;) {}
+  }
 
   vTaskStartScheduler();   // hands control to FreeRTOS; never returns
 
