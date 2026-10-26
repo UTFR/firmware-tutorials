@@ -220,6 +220,9 @@ extern float bms_get_temperature(uint8_t n);
 #define STEERING_CAN_ID 0x10
 #define TORQUE_CAN_ID   0x20
 
+// TODO: confirm encoding with lead - assumed 4 x int16 torques, 0.1 Nm per bit, FL in bytes 0-1
+#define TORQUE_SCALE 10.0f
+
 
 //Shared resources
 SemaphoreHandle_t spi_mutex; //protects the SPI bus (shared by LCD + BMS)
@@ -412,6 +415,48 @@ static float read_steering(void) {
   return raw * 0.1f;
 }
 
+// Packs 4 torques into one 8-byte CAN payload: 2 bytes each, FL lowest
+static uint64_t pack_torques(const float *torques) {
+  uint64_t payload = 0;
+  for (int m = 0; m < 4; m++) {
+    int16_t raw = (int16_t)(torques[m] * TORQUE_SCALE);    // e.g. 12.3 Nm -> 123
+    payload |= (uint64_t)(uint16_t)raw << (16 * m);        // place in bytes 2m, 2m+1
+  }
+  return payload;
+}
+
+// Highest priority: runs every 1 ms. Keep it SHORT - it must never be late.
+static void torque_task(void *p) {
+  TickType_t last_wake = xTaskGetTickCount();
+
+  for (;;) {
+    float current = read_current();
+    float wheelspeeds[4];
+    read_wheelspeeds(wheelspeeds);
+    float steering = read_steering();
+
+    float torques[4] = {0.0f, 0.0f, 0.0f, 0.0f};  // default: no torque
+    if (car_state == CarState::RTD) {
+      calculate_torque_cmd(torques, current, wheelspeeds, steering);
+    }
+
+    can_send(TORQUE_CAN_ID, pack_torques(torques));
+
+    xSemaphoreTake(data_mutex, portMAX_DELAY);
+    shared_data.current = current;
+    for (int i = 0; i < 4; i++) {
+      shared_data.wheelspeeds[i] = wheelspeeds[i];
+    }
+    shared_data.steering_angle = steering;
+    for (int i = 0; i < 4; i++) {
+      shared_data.torques[i] = torques[i];
+    }
+    xSemaphoreGive(data_mutex);
+
+    vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(TORQUE_PERIOD_MS));
+  }
+}
+
 
 void setup(void) {
   //Relays: outputs, forced OPEN (LOW) first so HV stays inside the accumulator
@@ -454,6 +499,7 @@ void setup(void) {
 
   xTaskCreate(state_machine_task, "state", TASK_STACK_DEPTH, NULL, STATE_PRIORITY, NULL);
   xTaskCreate(bms_task, "bms", TASK_STACK_DEPTH, NULL, BMS_PRIORITY, NULL);
+  xTaskCreate(torque_task, "torque", TASK_STACK_DEPTH, NULL, TORQUE_PRIORITY, NULL);
   // TODO: create torque, bms, lcd tasks
 
   vTaskStartScheduler();   // hands control to FreeRTOS; never returns
