@@ -237,6 +237,26 @@ struct CarData {
 };
 CarData shared_data = {};
 
+#define WHEEL_TEETH 17
+#define WHEEL_STOP_TIMEOUT_US 300000  // no tooth for 300 ms -> treat wheel as stopped
+
+// Written ONLY by the wheelspeed ISRs. Read by the torque task with interrupts off.
+volatile uint32_t wheel_last_us[4] = {0, 0, 0, 0};    // when the last tooth passed
+volatile uint32_t wheel_period_us[4] = {0, 0, 0, 0};  // time between the last two teeth
+
+// Runs inside an interrupt: keep it tiny. No maths beyond a subtraction, no printing.
+static void record_tooth(int wheel) {
+  uint32_t now = micros();
+  wheel_period_us[wheel] = now - wheel_last_us[wheel];
+  wheel_last_us[wheel] = now;
+}
+
+static void wheel_fl_isr(void) { record_tooth(0); }
+static void wheel_fr_isr(void) { record_tooth(1); }
+static void wheel_rl_isr(void) { record_tooth(2); }
+static void wheel_rr_isr(void) { record_tooth(3); }
+
+
 // Opens every relay. Safe to call at any time, in any state.
 static void open_all_relays(void) {
   digitalWrite(AIR_PLUS_PIN, arduino::LOW);
@@ -380,7 +400,11 @@ void setup(void) {
     for (;;) {}
   }
 
-  // TODO: attach wheelspeed interrupts (build step 4)
+  attachInterrupt(digitalPinToInterrupt(WHEEL_FL_PIN), wheel_fl_isr, arduino::FALLING);
+  attachInterrupt(digitalPinToInterrupt(WHEEL_FR_PIN), wheel_fr_isr, arduino::FALLING);
+  attachInterrupt(digitalPinToInterrupt(WHEEL_RL_PIN), wheel_rl_isr, arduino::FALLING);
+  attachInterrupt(digitalPinToInterrupt(WHEEL_RR_PIN), wheel_rr_isr, arduino::FALLING);
+
   xTaskCreate(state_machine_task, "state", TASK_STACK_DEPTH, NULL, STATE_PRIORITY, NULL);
   xTaskCreate(bms_task, "bms", TASK_STACK_DEPTH, NULL, BMS_PRIORITY, NULL);
   // TODO: create torque, bms, lcd tasks
