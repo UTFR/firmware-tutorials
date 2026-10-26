@@ -457,6 +457,50 @@ static void torque_task(void *p) {
   }
 }
 
+// Turns a CarState into text for the dash
+static const char *state_name(CarState s) {
+  switch (s) {
+    case CarState::LV:          return "LV";
+    case CarState::PRECHARGING: return "PRECHARGING";
+    case CarState::TS:          return "TS";
+    case CarState::RTD:         return "RTD";
+    case CarState::FAULT:       return "FAULT";
+  }
+  return "?";
+}
+
+// Lowest priority: display only. Hold each mutex as briefly as possible.
+static void lcd_task(void *p) {
+  TickType_t last_wake = xTaskGetTickCount();
+  char text[200];
+
+  for (;;) {
+    // 1. Snapshot the shared data: lock, copy, unlock
+    xSemaphoreTake(data_mutex, portMAX_DELAY);
+    CarData d = shared_data;
+    xSemaphoreGive(data_mutex);
+    CarState state = car_state;
+
+    // 2. Format the text BEFORE touching the SPI bus
+    snprintf(
+      text, sizeof(text),
+      "%s  %.1fA  Str %.1fdeg\n"
+      "RPM %.0f %.0f %.0f %.0f\n"
+      "Nm %.1f %.1f %.1f %.1f\n"
+      "V %.2f-%.2f  T %.1fC",
+      state_name(state), d.current, d.steering_angle,
+      d.wheelspeeds[0], d.wheelspeeds[1], d.wheelspeeds[2], d.wheelspeeds[3],
+      d.torques[0], d.torques[1], d.torques[2], d.torques[3],
+      d.min_cell_v, d.max_cell_v, d.max_cell_t
+    );
+    // 3. Hold the SPI bus only for the actual print
+    xSemaphoreTake(spi_mutex, portMAX_DELAY);
+    lcd_printf("%s", text);
+    xSemaphoreGive(spi_mutex);
+
+    vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(LCD_PERIOD_MS));
+  }
+}
 
 void setup(void) {
   //Relays: outputs, forced OPEN (LOW) first so HV stays inside the accumulator
@@ -500,7 +544,7 @@ void setup(void) {
   xTaskCreate(state_machine_task, "state", TASK_STACK_DEPTH, NULL, STATE_PRIORITY, NULL);
   xTaskCreate(bms_task, "bms", TASK_STACK_DEPTH, NULL, BMS_PRIORITY, NULL);
   xTaskCreate(torque_task, "torque", TASK_STACK_DEPTH, NULL, TORQUE_PRIORITY, NULL);
-  // TODO: create torque, bms, lcd tasks
+  xTaskCreate(lcd_task, "lcd", TASK_STACK_DEPTH, NULL, LCD_PRIORITY, NULL);
 
   vTaskStartScheduler();   // hands control to FreeRTOS; never returns
 
