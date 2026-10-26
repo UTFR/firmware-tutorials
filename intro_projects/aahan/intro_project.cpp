@@ -210,6 +210,16 @@ extern float bms_get_temperature(uint8_t n);
 #define CELL_V_MAX 4.3f
 #define CELL_T_MAX 60.0f
 
+// Current sensor: 10-bit ADC (0-1023 = 0-3.3 V), 1 A per 10 mV
+// TODO: ask lead - this can't read negative (regen) current; real sensors use a mid-rail offset
+#define ADC_MAX         1023.0f
+#define ADC_VREF        3.3f
+#define CURRENT_V_PER_A 0.010f
+
+// TODO: confirm with lead - CAN IDs and steering encoding are not in the spec
+#define STEERING_CAN_ID 0x10
+#define TORQUE_CAN_ID   0x20
+
 
 //Shared resources
 SemaphoreHandle_t spi_mutex; //protects the SPI bus (shared by LCD + BMS)
@@ -363,6 +373,43 @@ static void bms_task(void *p) {
 
     vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(BMS_PERIOD_MS));
   }
+}
+
+// ---- Torque task helpers. CAN: ONLY the torque task may call can_send/can_receive. ----
+
+static float read_current(void) {
+  float adc_value = analogRead(CURRENT_PIN);
+  float volts = (adc_value / ADC_MAX) * ADC_VREF;
+  return volts / CURRENT_V_PER_A;
+}
+
+static void read_wheelspeeds(float *rpm_out) {
+  uint32_t last[4], period[4];
+
+  // Copy the ISR data with interrupts briefly off, so each pair matches
+  noInterrupts();
+  for (int w = 0; w < 4; w++) {
+    last[w] = wheel_last_us[w];
+    period[w] = wheel_period_us[w];
+  }
+  interrupts();
+
+  uint32_t now = micros();
+  for (int w = 0; w < 4; w++) {
+    if (now - last[w] > WHEEL_STOP_TIMEOUT_US || period[w] == 0) {
+      rpm_out[w] = 0.0f;  // no recent tooth: wheel is stopped
+    } else {
+      rpm_out[w] = 60.0f * 1000000.0f / ((float)period[w] * WHEEL_TEETH);
+    }
+  }
+}
+
+static float read_steering(void) {
+  uint64_t payload = 0;
+  can_receive(&payload, STEERING_CAN_ID);
+  // TODO: confirm encoding - assumed bytes 0-1, signed, 0.1 degrees per bit
+  int16_t raw = (int16_t)(payload & 0xFFFF);
+  return raw * 0.1f;
 }
 
 
