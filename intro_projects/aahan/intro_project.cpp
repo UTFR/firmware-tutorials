@@ -202,6 +202,15 @@ extern float bms_get_temperature(uint8_t n);
 //TODO: confirm with lead - baudrate not in the spec
 #define CAN_BAUDRATE 500000
 
+// TODO: confirm with lead - onboarding doc says 6 segments x 23 cells
+#define NUM_CELLS 138
+
+// BMS safety limits (from the spec)
+#define CELL_V_MIN 2.8f
+#define CELL_V_MAX 4.3f
+#define CELL_T_MAX 60.0f
+
+
 //Shared resources
 SemaphoreHandle_t spi_mutex; //protects the SPI bus (shared by LCD + BMS)
 SemaphoreHandle_t data_mutex; //protects shared sensor / torque  / BMS values
@@ -290,6 +299,51 @@ static void state_machine_task(void *p) {
   }
 }
 
+// Scans every cell; on any unsafe reading, raises bms_fault.
+// Never touches relays - only the state machine does that.
+static void bms_task(void *p) {
+  TickType_t last_wake = xTaskGetTickCount();
+
+  for (;;) {
+    float min_v = 0.0f, max_v = 0.0f, max_t = 0.0f;  // overwritten by cell 0
+    bool unsafe = false;
+
+    // Hold the SPI bus for the whole scan - only the LCD waits, and it can
+    xSemaphoreTake(spi_mutex, portMAX_DELAY);
+    for (uint8_t i = 0; i < NUM_CELLS; i++) {
+      float v = bms_get_voltage(i);
+      float t = bms_get_temperature(i);
+      
+      // Check that each value is INSIDE the safe range, so a NaN reading
+      // (where every comparison is false) also counts as unsafe
+
+      bool v_ok = (v >= CELL_V_MIN) && (v <= CELL_V_MAX);
+      bool t_ok = (t <= CELL_T_MAX);
+      if (!v_ok || !t_ok) {
+        unsafe = true;
+      }
+
+
+      if (i == 0 || v < min_v) min_v = v;
+      if (i == 0 || v > max_v) max_v = v;
+      if (i == 0 || t > max_t) max_t = t;
+    }
+    xSemaphoreGive(spi_mutex);
+
+    if (unsafe) {
+      bms_fault = true;  // latched: never set back to false
+    }
+
+    // Publish for the LCD: lock, copy, unlock
+    xSemaphoreTake(data_mutex, portMAX_DELAY);
+    shared_data.min_cell_v = min_v;
+    shared_data.max_cell_v = max_v;
+    shared_data.max_cell_t = max_t;
+    xSemaphoreGive(data_mutex);
+
+    vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(BMS_PERIOD_MS));
+  }
+}
 
 
 void setup(void) {
@@ -328,6 +382,7 @@ void setup(void) {
 
   // TODO: attach wheelspeed interrupts (build step 4)
   xTaskCreate(state_machine_task, "state", TASK_STACK_DEPTH, NULL, STATE_PRIORITY, NULL);
+  xTaskCreate(bms_task, "bms", TASK_STACK_DEPTH, NULL, BMS_PRIORITY, NULL);
   // TODO: create torque, bms, lcd tasks
 
   vTaskStartScheduler();   // hands control to FreeRTOS; never returns
