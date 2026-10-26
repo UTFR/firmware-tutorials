@@ -178,7 +178,8 @@ extern float bms_get_temperature(uint8_t n);
 #define PRECHARGE_PIN 23
 #define AIR_MINUS_PIN 10
 
-//TODO: confirm with lead - wheelspeed pins are not in the spec, so 14-17 were chosen arbitrarily
+// TODO: confirm with lead - wheelspeed pins are not in the spec, so 14-17 were
+// chosen arbitrarily
 #define WHEEL_FL_PIN 14
 #define WHEEL_FR_PIN 15
 #define WHEEL_RL_PIN 16
@@ -199,7 +200,7 @@ extern float bms_get_temperature(uint8_t n);
 // Tasks stack size (words)
 #define TASK_STACK_DEPTH 1024
 
-//TODO: confirm with lead - baudrate not in the spec
+// TODO: confirm with lead - baudrate not in the spec
 #define CAN_BAUDRATE 500000
 
 // TODO: confirm with lead - onboarding doc says 6 segments x 23 cells
@@ -211,22 +212,23 @@ extern float bms_get_temperature(uint8_t n);
 #define CELL_T_MAX 60.0f
 
 // Current sensor: 10-bit ADC (0-1023 = 0-3.3 V), 1 A per 10 mV
-// TODO: ask lead - this can't read negative (regen) current; real sensors use a mid-rail offset
-#define ADC_MAX         1023.0f
-#define ADC_VREF        3.3f
+// TODO: ask lead - this can't read negative (regen) current; real sensors use a
+// mid-rail offset
+#define ADC_MAX 1023.0f
+#define ADC_VREF 3.3f
 #define CURRENT_V_PER_A 0.010f
 
 // TODO: confirm with lead - CAN IDs and steering encoding are not in the spec
 #define STEERING_CAN_ID 0x10
-#define TORQUE_CAN_ID   0x20
+#define TORQUE_CAN_ID 0x20
 
-// TODO: confirm encoding with lead - assumed 4 x int16 torques, 0.1 Nm per bit, FL in bytes 0-1
+// TODO: confirm encoding with lead - assumed 4 x int16 torques, 0.1 Nm per bit,
+// FL in bytes 0-1
 #define TORQUE_SCALE 10.0f
 
-
-//Shared resources
-SemaphoreHandle_t spi_mutex; //protects the SPI bus (shared by LCD + BMS)
-SemaphoreHandle_t data_mutex; //protects shared sensor / torque  / BMS values
+// Shared resources
+SemaphoreHandle_t spi_mutex;  // protects the SPI bus (shared by LCD + BMS)
+SemaphoreHandle_t data_mutex; // protects shared sensor / torque  / BMS values
 
 // Precharge duration before closing AIR+
 #define PRECHARGE_TIME_MS 5000
@@ -240,24 +242,29 @@ volatile bool bms_fault = false;
 
 // Values shared between tasks - ONLY read or write while holding data_mutex
 struct CarData {
-  float current;          // HV current (A)
-  float wheelspeeds[4];   // RPM, order FL, FR, RL, RR
-  float steering_angle;   // degrees
-  float torques[4];       // torque commands, order FL, FR, RL, RR
-  float min_cell_v;       // lowest cell voltage (V)
-  float max_cell_v;       // highest cell voltage (V)
-  float max_cell_t;       // highest cell temperature (C)
+  float current;        // HV current (A)
+  float wheelspeeds[4]; // RPM, order FL, FR, RL, RR
+  float steering_angle; // degrees
+  float torques[4];     // torque commands, order FL, FR, RL, RR
+  float min_cell_v;     // lowest cell voltage (V)
+  float max_cell_v;     // highest cell voltage (V)
+  float max_cell_t;     // highest cell temperature (C)
 };
 CarData shared_data = {};
 
 #define WHEEL_TEETH 17
-#define WHEEL_STOP_TIMEOUT_US 300000  // no tooth for 300 ms -> treat wheel as stopped
 
-// Written ONLY by the wheelspeed ISRs. Read by the torque task with interrupts off.
-volatile uint32_t wheel_last_us[4] = {0, 0, 0, 0};    // when the last tooth passed
-volatile uint32_t wheel_period_us[4] = {0, 0, 0, 0};  // time between the last two teeth
+// no tooth for 300 ms -> treat wheel as stopped
+#define WHEEL_STOP_TIMEOUT_US 300000
 
-// Runs inside an interrupt: keep it tiny. No maths beyond a subtraction, no printing.
+// Written ONLY by the wheelspeed ISRs. Read by the torque task with interrupts
+// off.
+volatile uint32_t wheel_last_us[4] = {0, 0, 0, 0}; // when the last tooth passed
+// time between the last two teeth
+volatile uint32_t wheel_period_us[4] = {0, 0, 0, 0};
+
+// Runs inside an interrupt: keep it tiny. No maths beyond a subtraction, no
+// printing.
 static void record_tooth(int wheel) {
   uint32_t now = micros();
   wheel_period_us[wheel] = now - wheel_last_us[wheel];
@@ -268,7 +275,6 @@ static void wheel_fl_isr(void) { record_tooth(0); }
 static void wheel_fr_isr(void) { record_tooth(1); }
 static void wheel_rl_isr(void) { record_tooth(2); }
 static void wheel_rr_isr(void) { record_tooth(3); }
-
 
 // Opens every relay. Safe to call at any time, in any state.
 static void open_all_relays(void) {
@@ -284,9 +290,9 @@ static void state_machine_task(void *p) {
   // Start as "pressed" so a button held at power-on doesn't count as a press
   bool rtd_was_pressed = true;
 
-  for (;;) {
+  for(;;) {
     // 1. Fault check ALWAYS comes first
-    if (bms_fault) {
+    if(bms_fault) {
       open_all_relays();
       car_state = CarState::FAULT;
     }
@@ -297,36 +303,36 @@ static void state_machine_task(void *p) {
     // Edge detection: only a fresh press (released -> pressed) counts
     bool rtd_new_press = rtd_pressed && !rtd_was_pressed;
 
-    switch (car_state) {
-      case CarState::LV:
-        if (ts_pressed) {
-          digitalWrite(AIR_MINUS_PIN, arduino::HIGH);
-          digitalWrite(PRECHARGE_PIN, arduino::HIGH);
-          precharge_start = xTaskGetTickCount();
-          car_state = CarState::PRECHARGING;
-        }
-        break;
+    switch(car_state) {
+    case CarState::LV:
+      if(ts_pressed) {
+        digitalWrite(AIR_MINUS_PIN, arduino::HIGH);
+        digitalWrite(PRECHARGE_PIN, arduino::HIGH);
+        precharge_start = xTaskGetTickCount();
+        car_state = CarState::PRECHARGING;
+      }
+      break;
 
-      case CarState::PRECHARGING:
-        if (xTaskGetTickCount() - precharge_start >= pdMS_TO_TICKS(PRECHARGE_TIME_MS)) {
-          digitalWrite(AIR_PLUS_PIN, arduino::HIGH);
-          digitalWrite(PRECHARGE_PIN, arduino::LOW);
-          car_state = CarState::TS;
-        }
-        break;
+    case CarState::PRECHARGING:
+      if(xTaskGetTickCount() - precharge_start >= pdMS_TO_TICKS(PRECHARGE_TIME_MS)) {
+        digitalWrite(AIR_PLUS_PIN, arduino::HIGH);
+        digitalWrite(PRECHARGE_PIN, arduino::LOW);
+        car_state = CarState::TS;
+      }
+      break;
 
-      case CarState::TS:
-        if (rtd_new_press) {
-          car_state = CarState::RTD;
-        }
-        break;
+    case CarState::TS:
+      if(rtd_new_press) {
+        car_state = CarState::RTD;
+      }
+      break;
 
-      case CarState::RTD:
-      case CarState::FAULT:
-        break;  // RTD only leaves on a fault; FAULT is latched forever
+    case CarState::RTD:
+    case CarState::FAULT:
+      break; // RTD only leaves on a fault; FAULT is latched forever
     }
 
-    rtd_was_pressed = rtd_pressed;  // remember the button for next loop
+    rtd_was_pressed = rtd_pressed; // remember the button for next loop
 
     vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(STATE_PERIOD_MS));
   }
@@ -337,34 +343,36 @@ static void state_machine_task(void *p) {
 static void bms_task(void *p) {
   TickType_t last_wake = xTaskGetTickCount();
 
-  for (;;) {
-    float min_v = 0.0f, max_v = 0.0f, max_t = 0.0f;  // overwritten by cell 0
+  for(;;) {
+    float min_v = 0.0f, max_v = 0.0f, max_t = 0.0f; // overwritten by cell 0
     bool unsafe = false;
 
     // Hold the SPI bus for the whole scan - only the LCD waits, and it can
     xSemaphoreTake(spi_mutex, portMAX_DELAY);
-    for (uint8_t i = 0; i < NUM_CELLS; i++) {
+    for(uint8_t i = 0; i < NUM_CELLS; i++) {
       float v = bms_get_voltage(i);
       float t = bms_get_temperature(i);
-      
+
       // Check that each value is INSIDE the safe range, so a NaN reading
       // (where every comparison is false) also counts as unsafe
 
       bool v_ok = (v >= CELL_V_MIN) && (v <= CELL_V_MAX);
       bool t_ok = (t <= CELL_T_MAX);
-      if (!v_ok || !t_ok) {
+      if(!v_ok || !t_ok) {
         unsafe = true;
       }
 
-
-      if (i == 0 || v < min_v) min_v = v;
-      if (i == 0 || v > max_v) max_v = v;
-      if (i == 0 || t > max_t) max_t = t;
+      if(i == 0 || v < min_v)
+        min_v = v;
+      if(i == 0 || v > max_v)
+        max_v = v;
+      if(i == 0 || t > max_t)
+        max_t = t;
     }
     xSemaphoreGive(spi_mutex);
 
-    if (unsafe) {
-      bms_fault = true;  // latched: never set back to false
+    if(unsafe) {
+      bms_fault = true; // latched: never set back to false
     }
 
     // Publish for the LCD: lock, copy, unlock
@@ -378,7 +386,8 @@ static void bms_task(void *p) {
   }
 }
 
-// ---- Torque task helpers. CAN: ONLY the torque task may call can_send/can_receive. ----
+// ---- Torque task helpers. CAN: ONLY the torque task may call
+// can_send/can_receive. ----
 
 static float read_current(void) {
   float adc_value = analogRead(CURRENT_PIN);
@@ -391,16 +400,16 @@ static void read_wheelspeeds(float *rpm_out) {
 
   // Copy the ISR data with interrupts briefly off, so each pair matches
   noInterrupts();
-  for (int w = 0; w < 4; w++) {
+  for(int w = 0; w < 4; w++) {
     last[w] = wheel_last_us[w];
     period[w] = wheel_period_us[w];
   }
   interrupts();
 
   uint32_t now = micros();
-  for (int w = 0; w < 4; w++) {
-    if (now - last[w] > WHEEL_STOP_TIMEOUT_US || period[w] == 0) {
-      rpm_out[w] = 0.0f;  // no recent tooth: wheel is stopped
+  for(int w = 0; w < 4; w++) {
+    if(now - last[w] > WHEEL_STOP_TIMEOUT_US || period[w] == 0) {
+      rpm_out[w] = 0.0f; // no recent tooth: wheel is stopped
     } else {
       rpm_out[w] = 60.0f * 1000000.0f / ((float)period[w] * WHEEL_TEETH);
     }
@@ -418,9 +427,9 @@ static float read_steering(void) {
 // Packs 4 torques into one 8-byte CAN payload: 2 bytes each, FL lowest
 static uint64_t pack_torques(const float *torques) {
   uint64_t payload = 0;
-  for (int m = 0; m < 4; m++) {
-    int16_t raw = (int16_t)(torques[m] * TORQUE_SCALE);    // e.g. 12.3 Nm -> 123
-    payload |= (uint64_t)(uint16_t)raw << (16 * m);        // place in bytes 2m, 2m+1
+  for(int m = 0; m < 4; m++) {
+    int16_t raw = (int16_t)(torques[m] * TORQUE_SCALE); // e.g. 12.3 Nm -> 123
+    payload |= (uint64_t)(uint16_t)raw << (16 * m); // place in bytes 2m, 2m+1
   }
   return payload;
 }
@@ -429,14 +438,14 @@ static uint64_t pack_torques(const float *torques) {
 static void torque_task(void *p) {
   TickType_t last_wake = xTaskGetTickCount();
 
-  for (;;) {
+  for(;;) {
     float current = read_current();
     float wheelspeeds[4];
     read_wheelspeeds(wheelspeeds);
     float steering = read_steering();
 
-    float torques[4] = {0.0f, 0.0f, 0.0f, 0.0f};  // default: no torque
-    if (car_state == CarState::RTD) {
+    float torques[4] = {0.0f, 0.0f, 0.0f, 0.0f}; // default: no torque
+    if(car_state == CarState::RTD) {
       calculate_torque_cmd(torques, current, wheelspeeds, steering);
     }
 
@@ -444,11 +453,11 @@ static void torque_task(void *p) {
 
     xSemaphoreTake(data_mutex, portMAX_DELAY);
     shared_data.current = current;
-    for (int i = 0; i < 4; i++) {
+    for(int i = 0; i < 4; i++) {
       shared_data.wheelspeeds[i] = wheelspeeds[i];
     }
     shared_data.steering_angle = steering;
-    for (int i = 0; i < 4; i++) {
+    for(int i = 0; i < 4; i++) {
       shared_data.torques[i] = torques[i];
     }
     xSemaphoreGive(data_mutex);
@@ -459,12 +468,17 @@ static void torque_task(void *p) {
 
 // Turns a CarState into text for the dash
 static const char *state_name(CarState s) {
-  switch (s) {
-    case CarState::LV:          return "LV";
-    case CarState::PRECHARGING: return "PRECHARGING";
-    case CarState::TS:          return "TS";
-    case CarState::RTD:         return "RTD";
-    case CarState::FAULT:       return "FAULT";
+  switch(s) {
+  case CarState::LV:
+    return "LV";
+  case CarState::PRECHARGING:
+    return "PRECHARGING";
+  case CarState::TS:
+    return "TS";
+  case CarState::RTD:
+    return "RTD";
+  case CarState::FAULT:
+    return "FAULT";
   }
   return "?";
 }
@@ -474,7 +488,7 @@ static void lcd_task(void *p) {
   TickType_t last_wake = xTaskGetTickCount();
   char text[200];
 
-  for (;;) {
+  for(;;) {
     // 1. Snapshot the shared data: lock, copy, unlock
     xSemaphoreTake(data_mutex, portMAX_DELAY);
     CarData d = shared_data;
@@ -488,10 +502,10 @@ static void lcd_task(void *p) {
       "RPM %.0f %.0f %.0f %.0f\n"
       "Nm %.1f %.1f %.1f %.1f\n"
       "V %.2f-%.2f  T %.1fC",
-      state_name(state), d.current, d.steering_angle,
-      d.wheelspeeds[0], d.wheelspeeds[1], d.wheelspeeds[2], d.wheelspeeds[3],
-      d.torques[0], d.torques[1], d.torques[2], d.torques[3],
-      d.min_cell_v, d.max_cell_v, d.max_cell_t
+      state_name(state), d.current, d.steering_angle, d.wheelspeeds[0],
+      d.wheelspeeds[1], d.wheelspeeds[2], d.wheelspeeds[3], d.torques[0],
+      d.torques[1], d.torques[2], d.torques[3], d.min_cell_v, d.max_cell_v,
+      d.max_cell_t
     );
     // 3. Hold the SPI bus only for the actual print
     xSemaphoreTake(spi_mutex, portMAX_DELAY);
@@ -503,7 +517,7 @@ static void lcd_task(void *p) {
 }
 
 void setup(void) {
-  //Relays: outputs, forced OPEN (LOW) first so HV stays inside the accumulator
+  // Relays: outputs, forced OPEN (LOW) first so HV stays inside the accumulator
   pinMode(AIR_PLUS_PIN, arduino::OUTPUT);
   digitalWrite(AIR_PLUS_PIN, arduino::LOW);
   pinMode(AIR_MINUS_PIN, arduino::OUTPUT);
@@ -511,7 +525,7 @@ void setup(void) {
   pinMode(PRECHARGE_PIN, arduino::OUTPUT);
   digitalWrite(PRECHARGE_PIN, arduino::LOW);
 
-  //Dash buttons: active low, so use the internal pull-up resistor
+  // Dash buttons: active low, so use the internal pull-up resistor
   pinMode(TS_ON_PIN, arduino::INPUT_PULLUP);
   pinMode(RTD_PIN, arduino::INPUT_PULLUP);
 
@@ -520,7 +534,7 @@ void setup(void) {
   pinMode(WHEEL_FR_PIN, arduino::INPUT_PULLUP);
   pinMode(WHEEL_RL_PIN, arduino::INPUT_PULLUP);
   pinMode(WHEEL_RR_PIN, arduino::INPUT_PULLUP);
- 
+
   // Peripherals (CAN, plus LCD, and BMS sharing one SPI bus)
   can_init(CAN_RX_PIN, CAN_TX_PIN, CAN_BAUDRATE);
   lcd_init(MOSI_PIN, MISO_PIN, SCK_PIN, LCD_CS_PIN);
@@ -532,32 +546,52 @@ void setup(void) {
 
   // If a mutex couldn't be created, stop here. The relays are already open,
   // so halting is the safe way to fail.
-  if (spi_mutex == NULL || data_mutex == NULL) {
-    for (;;) {}
+  if(spi_mutex == NULL || data_mutex == NULL) {
+    for(;;) {}
   }
 
-  attachInterrupt(digitalPinToInterrupt(WHEEL_FL_PIN), wheel_fl_isr, arduino::FALLING);
-  attachInterrupt(digitalPinToInterrupt(WHEEL_FR_PIN), wheel_fr_isr, arduino::FALLING);
-  attachInterrupt(digitalPinToInterrupt(WHEEL_RL_PIN), wheel_rl_isr, arduino::FALLING);
-  attachInterrupt(digitalPinToInterrupt(WHEEL_RR_PIN), wheel_rr_isr, arduino::FALLING);
+  attachInterrupt(
+    digitalPinToInterrupt(WHEEL_FL_PIN), wheel_fl_isr, arduino::FALLING
+  );
+  attachInterrupt(
+    digitalPinToInterrupt(WHEEL_FR_PIN), wheel_fr_isr, arduino::FALLING
+  );
+  attachInterrupt(
+    digitalPinToInterrupt(WHEEL_RL_PIN), wheel_rl_isr, arduino::FALLING
+  );
+  attachInterrupt(
+    digitalPinToInterrupt(WHEEL_RR_PIN), wheel_rr_isr, arduino::FALLING
+  );
 
   // If any task couldn't be created, halt here - relays are already open,
   // and running without (say) the BMS task would be unsafe.
-  if (xTaskCreate(state_machine_task, "State", TASK_STACK_DEPTH, NULL, STATE_PRIORITY, NULL) != pdPASS) {
-    for (;;) {}
+  if(
+    xTaskCreate(
+      state_machine_task, "State", TASK_STACK_DEPTH, NULL, STATE_PRIORITY, NULL
+    ) != pdPASS
+  ) {
+    for(;;) {}
   }
-  if (xTaskCreate(bms_task, "BMS", TASK_STACK_DEPTH, NULL, BMS_PRIORITY, NULL) != pdPASS) {
-    for (;;) {}
+  if(
+    xTaskCreate(bms_task, "BMS", TASK_STACK_DEPTH, NULL, BMS_PRIORITY, NULL) !=
+    pdPASS
+  ) {
+    for(;;) {}
   }
-  if (xTaskCreate(torque_task, "Torque", TASK_STACK_DEPTH, NULL, TORQUE_PRIORITY, NULL) != pdPASS) {
-    for (;;) {}
+  if(
+    xTaskCreate(
+      torque_task, "Torque", TASK_STACK_DEPTH, NULL, TORQUE_PRIORITY, NULL
+    ) != pdPASS
+  ) {
+    for(;;) {}
   }
-  if (xTaskCreate(lcd_task, "LCD", TASK_STACK_DEPTH, NULL, LCD_PRIORITY, NULL) != pdPASS) {
-    for (;;) {}
+  if(
+    xTaskCreate(lcd_task, "LCD", TASK_STACK_DEPTH, NULL, LCD_PRIORITY, NULL) !=
+    pdPASS
+  ) {
+    for(;;) {}
   }
 
-  vTaskStartScheduler();   // hands control to FreeRTOS; never returns
-
-  
+  vTaskStartScheduler(); // hands control to FreeRTOS; never returns
 }
 void loop(void) {}
