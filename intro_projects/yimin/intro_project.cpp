@@ -42,6 +42,12 @@ constexpr uint8_t AIR_POSITIVE_PIN = 22;
 constexpr uint8_t PRECHARGE_PIN = 23;
 constexpr uint8_t AIR_NEGATIVE_PIN = 10;
 
+constexpr uint8_t WHEEL_COUNT = 4;
+// TODO: Confirm these wheel-sensor pins; the tutorial does not specify them.
+constexpr uint8_t WHEEL_PINS[WHEEL_COUNT] = {14, 15, 16, 17};
+constexpr uint8_t WHEEL_TEETH = 17;
+constexpr uint32_t WHEEL_STOP_TIMEOUT_US = 300000;
+
 constexpr uint8_t RELAY_DEENERGIZED = arduino::LOW;
 constexpr uint8_t RELAY_ENERGIZED = arduino::HIGH;
 
@@ -69,6 +75,9 @@ PrechargeState precharge_state = PrechargeState::IDLE;
 FaultReason fault_reason = FaultReason::NONE;
 // The future BMS task may set this only after a complete, valid cell scan.
 bool bms_monitor_ready = false;
+
+volatile uint32_t wheel_last_pulse_us[WHEEL_COUNT] = {};
+volatile uint32_t wheel_period_us[WHEEL_COUNT] = {};
 
 /*
 The car has three possible functional states:
@@ -238,6 +247,49 @@ float read_current_amps(void) {
   return sensor_voltage / CURRENT_SENSOR_VOLTS_PER_AMP;
 }
 
+float rpm_from_period(uint32_t period_us) {
+  if(period_us == 0) {
+    return 0.0F;
+  }
+  return 60000000.0F /
+         (WHEEL_TEETH * static_cast<float>(period_us));
+}
+
+void record_wheel_pulse(uint8_t wheel) {
+  const uint32_t now = micros();
+  const uint32_t previous = wheel_last_pulse_us[wheel];
+  if(previous != 0) {
+    wheel_period_us[wheel] = now - previous;
+  }
+  wheel_last_pulse_us[wheel] = now;
+}
+
+void wheel_fl_isr(void) { record_wheel_pulse(0); }
+void wheel_fr_isr(void) { record_wheel_pulse(1); }
+void wheel_rl_isr(void) { record_wheel_pulse(2); }
+void wheel_rr_isr(void) { record_wheel_pulse(3); }
+
+void read_wheel_rpm(float *rpm) {
+  uint32_t last[WHEEL_COUNT];
+  uint32_t period[WHEEL_COUNT];
+
+  // Copy ISR data together so each wheel's time and period match.
+  noInterrupts();
+  for(uint8_t wheel = 0; wheel < WHEEL_COUNT; ++wheel) {
+    last[wheel] = wheel_last_pulse_us[wheel];
+    period[wheel] = wheel_period_us[wheel];
+  }
+  interrupts();
+
+  const uint32_t now = micros();
+  for(uint8_t wheel = 0; wheel < WHEEL_COUNT; ++wheel) {
+    rpm[wheel] = (last[wheel] == 0 ||
+                  now - last[wheel] > WHEEL_STOP_TIMEOUT_US)
+                   ? 0.0F
+                   : rpm_from_period(period[wheel]);
+  }
+}
+
 bool read_button_pressed(uint8_t pin) {
   return digitalReadFast(pin) == arduino::LOW;
 }
@@ -373,9 +425,12 @@ void control_task(void *) {
 
   for(;;) {
     const float current_amps = read_current_amps();
+    float wheel_rpm[WHEEL_COUNT];
+    read_wheel_rpm(wheel_rpm);
 
-    // The torque calculation will consume this sample in the next step.
+    // Torque calculation will use these sensor values in the next step.
     (void)current_amps;
+    (void)wheel_rpm;
 
     vTaskDelayUntil(&previous_wake_time, CONTROL_TASK_PERIOD);
   }
@@ -449,6 +504,14 @@ void setup(void) {
   pinMode(AIR_POSITIVE_PIN, arduino::OUTPUT);
   pinMode(PRECHARGE_PIN, arduino::OUTPUT);
   pinMode(AIR_NEGATIVE_PIN, arduino::OUTPUT);
+
+  for(uint8_t wheel = 0; wheel < WHEEL_COUNT; ++wheel) {
+    pinMode(WHEEL_PINS[wheel], arduino::INPUT_PULLUP);
+  }
+  attachInterrupt(WHEEL_PINS[0], wheel_fl_isr, arduino::FALLING);
+  attachInterrupt(WHEEL_PINS[1], wheel_fr_isr, arduino::FALLING);
+  attachInterrupt(WHEEL_PINS[2], wheel_rl_isr, arduino::FALLING);
+  attachInterrupt(WHEEL_PINS[3], wheel_rr_isr, arduino::FALLING);
 
   const BaseType_t task_created =
     xTaskCreate(control_task, "control", CONTROL_TASK_STACK_DEPTH, nullptr,
