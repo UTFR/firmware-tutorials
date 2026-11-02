@@ -1,4 +1,5 @@
 #include <arduino_freertos.h>
+#include <semphr.h>
 #include <cmath>
 #include <stdint.h>
 
@@ -41,6 +42,14 @@ constexpr uint8_t CURRENT_SENSOR_PIN = 19;
 constexpr uint8_t AIR_POSITIVE_PIN = 22;
 constexpr uint8_t PRECHARGE_PIN = 23;
 constexpr uint8_t AIR_NEGATIVE_PIN = 10;
+constexpr uint8_t BMS_CS_PIN = 9;
+constexpr uint8_t LCD_CS_PIN = 8;
+constexpr uint8_t SPI_MOSI_PIN = 5;
+constexpr uint8_t SPI_MISO_PIN = 6;
+constexpr uint8_t SPI_SCK_PIN = 7;
+
+// TODO: Confirm the cell count with the actual accumulator configuration.
+constexpr uint8_t BMS_CELL_COUNT = 138;
 
 constexpr uint8_t WHEEL_COUNT = 4;
 // TODO: Confirm these wheel-sensor pins; the tutorial does not specify them.
@@ -66,6 +75,14 @@ constexpr TickType_t STATE_TASK_PERIOD = pdMS_TO_TICKS(10);
 constexpr TickType_t BUTTON_DEBOUNCE_TIME = pdMS_TO_TICKS(30);
 constexpr TickType_t PRECHARGE_DURATION = pdMS_TO_TICKS(5000);
 
+constexpr uint16_t BMS_TASK_STACK_DEPTH = 512;
+constexpr UBaseType_t BMS_TASK_PRIORITY = tskIDLE_PRIORITY + 1;
+constexpr TickType_t BMS_TASK_PERIOD = pdMS_TO_TICKS(100);
+
+constexpr uint16_t LCD_TASK_STACK_DEPTH = 512;
+constexpr UBaseType_t LCD_TASK_PRIORITY = tskIDLE_PRIORITY + 1;
+constexpr TickType_t LCD_TASK_PERIOD = pdMS_TO_TICKS(100);
+
 constexpr float MIN_CELL_VOLTAGE = 2.8F;
 constexpr float MAX_CELL_VOLTAGE = 4.3F;
 constexpr float MAX_CELL_TEMPERATURE = 60.0F;
@@ -73,8 +90,11 @@ constexpr float MAX_CELL_TEMPERATURE = 60.0F;
 VehicleState vehicle_state = VehicleState::LV;
 PrechargeState precharge_state = PrechargeState::IDLE;
 FaultReason fault_reason = FaultReason::NONE;
-// The future BMS task may set this only after a complete, valid cell scan.
+// Allow precharge only after a complete, valid BMS scan.
 bool bms_monitor_ready = false;
+BmsSummary latest_bms_summary {0.0F, 0.0F, 0.0F,
+                               FaultReason::INVALID_BMS_READING};
+SemaphoreHandle_t spi_mutex = nullptr;
 
 volatile uint32_t wheel_last_pulse_us[WHEEL_COUNT] = {};
 volatile uint32_t wheel_period_us[WHEEL_COUNT] = {};
@@ -486,6 +506,77 @@ void state_task(void *) {
   }
 }
 
+void bms_task(void *) {
+  TickType_t previous_wake_time = xTaskGetTickCount();
+
+  for(;;) {
+    BmsSummary summary {0.0F, 0.0F, 0.0F, FaultReason::NONE};
+
+    // The LCD and BMS share one SPI bus.
+    xSemaphoreTake(spi_mutex, portMAX_DELAY);
+    for(uint8_t cell = 0; cell < BMS_CELL_COUNT; ++cell) {
+      const float voltage = bms_get_voltage(cell);
+      const float temperature = bms_get_temperature(cell);
+      summary.fault = classify_bms_reading(voltage, temperature);
+      if(summary.fault != FaultReason::NONE) {
+        break;
+      }
+
+      if(cell == 0) {
+        summary.lowest_voltage = voltage;
+        summary.highest_voltage = voltage;
+        summary.highest_temperature = temperature;
+      } else {
+        if(voltage < summary.lowest_voltage) summary.lowest_voltage = voltage;
+        if(voltage > summary.highest_voltage) summary.highest_voltage = voltage;
+        if(temperature > summary.highest_temperature)
+          summary.highest_temperature = temperature;
+      }
+    }
+    xSemaphoreGive(spi_mutex);
+
+    if(summary.fault != FaultReason::NONE) {
+      shutdown_for_fault(summary.fault);
+    } else {
+      taskENTER_CRITICAL();
+      if(fault_reason == FaultReason::NONE) {
+        latest_bms_summary = summary;
+        bms_monitor_ready = true;
+      }
+      taskEXIT_CRITICAL();
+    }
+
+    vTaskDelayUntil(&previous_wake_time, BMS_TASK_PERIOD);
+  }
+}
+
+void lcd_task(void *) {
+  TickType_t previous_wake_time = xTaskGetTickCount();
+
+  for(;;) {
+    taskENTER_CRITICAL();
+    const BmsSummary summary = latest_bms_summary;
+    const VehicleState state = vehicle_state;
+    const FaultReason fault = fault_reason;
+    const bool bms_ready = bms_monitor_ready;
+    taskEXIT_CRITICAL();
+
+    xSemaphoreTake(spi_mutex, portMAX_DELAY);
+    if(bms_ready) {
+      lcd_printf("State:%u Fault:%u BMS: %.2f-%.2f V, max %.1f C",
+                 static_cast<unsigned>(state), static_cast<unsigned>(fault),
+                 summary.lowest_voltage, summary.highest_voltage,
+                 summary.highest_temperature);
+    } else {
+      lcd_printf("State:%u Fault:%u BMS unavailable",
+                 static_cast<unsigned>(state), static_cast<unsigned>(fault));
+    }
+    xSemaphoreGive(spi_mutex);
+
+    vTaskDelayUntil(&previous_wake_time, LCD_TASK_PERIOD);
+  }
+}
+
 void setup(void) {
   // Both dashboard buttons are active-low, so the internal pull-ups keep an
   // unpressed or disconnected input at a known HIGH level.
@@ -513,15 +604,31 @@ void setup(void) {
   attachInterrupt(WHEEL_PINS[2], wheel_rl_isr, arduino::FALLING);
   attachInterrupt(WHEEL_PINS[3], wheel_rr_isr, arduino::FALLING);
 
+  spi_mutex = xSemaphoreCreateMutex();
+  if(spi_mutex == nullptr) {
+    open_all_relays();
+    for(;;) {}
+  }
+
+  bms_init(SPI_MOSI_PIN, SPI_MISO_PIN, SPI_SCK_PIN, BMS_CS_PIN);
+  lcd_init(SPI_MOSI_PIN, SPI_MISO_PIN, SPI_SCK_PIN, LCD_CS_PIN);
+
   const BaseType_t task_created =
     xTaskCreate(control_task, "control", CONTROL_TASK_STACK_DEPTH, nullptr,
                 CONTROL_TASK_PRIORITY, nullptr);
   const BaseType_t state_task_created =
     xTaskCreate(state_task, "state", STATE_TASK_STACK_DEPTH, nullptr,
                 STATE_TASK_PRIORITY, nullptr);
+  const BaseType_t bms_task_created =
+    xTaskCreate(bms_task, "bms", BMS_TASK_STACK_DEPTH, nullptr,
+                BMS_TASK_PRIORITY, nullptr);
+  const BaseType_t lcd_task_created =
+    xTaskCreate(lcd_task, "lcd", LCD_TASK_STACK_DEPTH, nullptr,
+                LCD_TASK_PRIORITY, nullptr);
 
   // If task creation fails, remain here with all high-voltage relays open.
-  if(task_created != pdPASS || state_task_created != pdPASS) {
+  if(task_created != pdPASS || state_task_created != pdPASS ||
+     bms_task_created != pdPASS || lcd_task_created != pdPASS) {
     open_all_relays();
     for(;;) {}
   }
