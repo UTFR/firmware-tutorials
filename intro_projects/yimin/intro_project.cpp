@@ -1,6 +1,7 @@
 #include <arduino_freertos.h>
 #include <semphr.h>
 #include <cmath>
+#include <cstdio>
 #include <stdint.h>
 
 enum class VehicleState : uint8_t {
@@ -87,13 +88,20 @@ constexpr uint16_t BMS_TASK_STACK_DEPTH = 512;
 constexpr UBaseType_t BMS_TASK_PRIORITY = tskIDLE_PRIORITY + 1;
 constexpr TickType_t BMS_TASK_PERIOD = pdMS_TO_TICKS(100);
 
-constexpr uint16_t LCD_TASK_STACK_DEPTH = 512;
+constexpr uint16_t LCD_TASK_STACK_DEPTH = 1024;
 constexpr UBaseType_t LCD_TASK_PRIORITY = tskIDLE_PRIORITY + 1;
 constexpr TickType_t LCD_TASK_PERIOD = pdMS_TO_TICKS(100);
 
 constexpr float MIN_CELL_VOLTAGE = 2.8F;
 constexpr float MAX_CELL_VOLTAGE = 4.3F;
 constexpr float MAX_CELL_TEMPERATURE = 60.0F;
+
+struct ControlSnapshot {
+  float current_amps;
+  float wheel_rpm[WHEEL_COUNT];
+  float steering_angle;
+  float torques[WHEEL_COUNT];
+};
 
 VehicleState vehicle_state = VehicleState::LV;
 PrechargeState precharge_state = PrechargeState::IDLE;
@@ -102,6 +110,7 @@ FaultReason fault_reason = FaultReason::NONE;
 bool bms_monitor_ready = false;
 BmsSummary latest_bms_summary {0.0F, 0.0F, 0.0F,
                                FaultReason::INVALID_BMS_READING};
+ControlSnapshot latest_control = {};
 SemaphoreHandle_t spi_mutex = nullptr;
 
 volatile uint32_t wheel_last_pulse_us[WHEEL_COUNT] = {};
@@ -490,6 +499,15 @@ void control_task(void *) {
 
     can_send(TORQUE_CAN_ID,pack_torques(torques));
 
+    taskENTER_CRITICAL();
+    latest_control.current_amps = current_amps;
+    latest_control.steering_angle = steering_angle;
+    for(uint8_t motor = 0; motor < WHEEL_COUNT; ++motor) {
+      latest_control.wheel_rpm[motor] = wheel_rpm[motor];
+      latest_control.torques[motor] = torques[motor];
+    }
+    taskEXIT_CRITICAL();
+
     vTaskDelayUntil(&previous_wake_time, CONTROL_TASK_PERIOD);
   }
 }
@@ -590,25 +608,39 @@ void bms_task(void *) {
 
 void lcd_task(void *) {
   TickType_t previous_wake_time = xTaskGetTickCount();
+  char bms_line[64];
+  char display[256];
 
   for(;;) {
     taskENTER_CRITICAL();
     const BmsSummary summary = latest_bms_summary;
+    const ControlSnapshot control = latest_control;
     const VehicleState state = vehicle_state;
     const FaultReason fault = fault_reason;
     const bool bms_ready = bms_monitor_ready;
     taskEXIT_CRITICAL();
 
-    xSemaphoreTake(spi_mutex, portMAX_DELAY);
     if(bms_ready) {
-      lcd_printf("State:%u Fault:%u BMS: %.2f-%.2f V, max %.1f C",
-                 static_cast<unsigned>(state), static_cast<unsigned>(fault),
-                 summary.lowest_voltage, summary.highest_voltage,
-                 summary.highest_temperature);
+      std::snprintf(bms_line, sizeof(bms_line), "BMS:%.2f-%.2fV %.1fC",
+                    summary.lowest_voltage, summary.highest_voltage,
+                    summary.highest_temperature);
     } else {
-      lcd_printf("State:%u Fault:%u BMS unavailable",
-                 static_cast<unsigned>(state), static_cast<unsigned>(fault));
+      std::snprintf(bms_line, sizeof(bms_line), "BMS unavailable");
     }
+
+    std::snprintf(display, sizeof(display),
+                  "S:%u F:%u I:%.1fA Str:%.1fdeg\n"
+                  "RPM:%.0f %.0f %.0f %.0f\n"
+                  "Nm:%.1f %.1f %.1f %.1f\n%s",
+                  static_cast<unsigned>(state), static_cast<unsigned>(fault),
+                  control.current_amps, control.steering_angle,
+                  control.wheel_rpm[0], control.wheel_rpm[1],
+                  control.wheel_rpm[2], control.wheel_rpm[3],
+                  control.torques[0], control.torques[1],
+                  control.torques[2], control.torques[3], bms_line);
+
+    xSemaphoreTake(spi_mutex, portMAX_DELAY);
+    lcd_printf("%s", display);
     xSemaphoreGive(spi_mutex);
 
     vTaskDelayUntil(&previous_wake_time, LCD_TASK_PERIOD);
