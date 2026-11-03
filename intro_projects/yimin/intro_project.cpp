@@ -47,6 +47,11 @@ constexpr uint8_t LCD_CS_PIN = 8;
 constexpr uint8_t SPI_MOSI_PIN = 5;
 constexpr uint8_t SPI_MISO_PIN = 6;
 constexpr uint8_t SPI_SCK_PIN = 7;
+constexpr uint8_t CAN_RX_PIN =2;
+constexpr uint8_t CAN_TX_PIN =3;
+// TODO: Confirm baud rate, message ID, and angle encoding.
+constexpr uint32_t CAN_BAUDRATE = 500000;
+constexpr uint32_t STEERING_CAN_ID =0X10;
 
 // TODO: Confirm the cell count with the actual accumulator configuration.
 constexpr uint8_t BMS_CELL_COUNT = 138;
@@ -310,6 +315,15 @@ void read_wheel_rpm(float *rpm) {
   }
 }
 
+float read_steering_angle(void){
+  uint64_t payload =0;
+  can_receive(&payload, STEERING_CAN_ID);
+
+  // assume the lowest 16bits represent angle in units of 0.1 degree.
+  const int16_t raw_angle =static_cast <int16_t>(payload & 0xffffu);
+  return static_cast<float>(raw_angle) * 0.1f;
+}
+
 bool read_button_pressed(uint8_t pin) {
   return digitalReadFast(pin) == arduino::LOW;
 }
@@ -447,10 +461,21 @@ void control_task(void *) {
     const float current_amps = read_current_amps();
     float wheel_rpm[WHEEL_COUNT];
     read_wheel_rpm(wheel_rpm);
+    const float steering_angle = read_steering_angle();
 
-    // Torque calculation will use these sensor values in the next step.
-    (void)current_amps;
-    (void)wheel_rpm;
+    float torques[WHEEL_COUNT] = {};
+    taskENTER_CRITICAL();
+    const bool drive_enabled = vehicle_state == VehicleState::RTD &&
+                               fault_reason == FaultReason::NONE &&
+                               bms_monitor_ready;
+    taskEXIT_CRITICAL();
+
+    if(drive_enabled) {
+      calculate_torque_cmd(torques, current_amps, wheel_rpm, steering_angle);
+    }
+
+    // TODO: Send torques over CAN once the message format is confirmed.
+    (void)torques;
 
     vTaskDelayUntil(&previous_wake_time, CONTROL_TASK_PERIOD);
   }
@@ -612,6 +637,7 @@ void setup(void) {
 
   bms_init(SPI_MOSI_PIN, SPI_MISO_PIN, SPI_SCK_PIN, BMS_CS_PIN);
   lcd_init(SPI_MOSI_PIN, SPI_MISO_PIN, SPI_SCK_PIN, LCD_CS_PIN);
+  can_init(CAN_RX_PIN,CAN_TX_PIN,CAN_BAUDRATE);
 
   const BaseType_t task_created =
     xTaskCreate(control_task, "control", CONTROL_TASK_STACK_DEPTH, nullptr,
