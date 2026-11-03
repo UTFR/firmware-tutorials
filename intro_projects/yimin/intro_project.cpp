@@ -52,6 +52,9 @@ constexpr uint8_t CAN_TX_PIN =3;
 // TODO: Confirm baud rate, message ID, and angle encoding.
 constexpr uint32_t CAN_BAUDRATE = 500000;
 constexpr uint32_t STEERING_CAN_ID =0X10;
+// TODO: Confirm torque CAN ID and payload encoding.
+constexpr uint8_t TORQUE_CAN_ID = 0x20;
+constexpr float TORQUE_COUNTS_PER_NM = 10.0F;
 
 // TODO: Confirm the cell count with the actual accumulator configuration.
 constexpr uint8_t BMS_CELL_COUNT = 138;
@@ -324,6 +327,17 @@ float read_steering_angle(void){
   return static_cast<float>(raw_angle) * 0.1f;
 }
 
+uint64_t pack_torques(const float *torques){
+  uint64_t payload = 0;
+
+  for(uint8_t motor =0; motor < WHEEL_COUNT; ++motor){
+    const int16_t raw = static_cast<int16_t>(torques[motor]*TORQUE_COUNTS_PER_NM);
+    payload |= static_cast<uint64_t>(static_cast<uint16_t>(raw)) << (16U * motor);
+  }
+
+  return payload;
+}
+
 bool read_button_pressed(uint8_t pin) {
   return digitalReadFast(pin) == arduino::LOW;
 }
@@ -474,8 +488,7 @@ void control_task(void *) {
       calculate_torque_cmd(torques, current_amps, wheel_rpm, steering_angle);
     }
 
-    // TODO: Send torques over CAN once the message format is confirmed.
-    (void)torques;
+    can_send(TORQUE_CAN_ID,pack_torques(torques));
 
     vTaskDelayUntil(&previous_wake_time, CONTROL_TASK_PERIOD);
   }
