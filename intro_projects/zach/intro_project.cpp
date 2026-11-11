@@ -1,3 +1,22 @@
+/*
+Planning:
+States: LV -> PRECHARGE -> TS -> RTD. Any fault -> LV (latched)
+
+Tasks (prioity high to low):
+motor 1ms sensors -> torque (0 unless RTD) -> CAN
+bms 50ms check cells, trip_fault() if unsafe
+state 10ms buttons, state machine, relays
+lcd 100ms print everyting
+ISRs: wheel teeth, timestamp only
+
+Shared
+CAN - motor task only (no mutex)
+SPI - bms and lcd (mutex)
+state - mutex
+data - mutex, copy then release
+
+*/
+
 #include <arduino_freertos.h>
 #include <stdint.h>
 
