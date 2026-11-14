@@ -1,26 +1,4 @@
 /*
-Planning:
-States: LV -> PRECHARGE -> TS -> RTD. Any fault -> LV (latched)
-
-Tasks (prioity high to low):
-motor 1ms sensors -> torque (0 unless RTD) -> CAN
-bms 50ms check cells, trip_fault() if unsafe
-state 10ms buttons, state machine, relays
-lcd 100ms print everyting
-ISRs: wheel teeth, timestamp only
-
-Shared
-CAN - motor task only (no mutex)
-SPI - bms and lcd (mutex)
-state - mutex
-data - mutex, copy then release
-
-*/
-
-#include <arduino_freertos.h>
-#include <stdint.h>
-
-/*
 The car has three possible functional states:
 1. Low Voltage (LV)
 2. Tractive System (TS)
@@ -132,7 +110,69 @@ clang-format as soon as possible and set it up :)
 */
 
 /*
-  Initialize the CAN peripheral with given RX and TX pins at a given baudrate.
+Planning:
+States: LV -> PRECHARGE -> TS -> RTD.
+TS pressed in PRECHARGE/TS/RTD -> LV (normal shutdown)
+Any fault -> LV (latched)
+
+Tasks (prioity high to low):
+motor: 1ms sensors + latest steering -> torque (0 unless RTD) -> CAN
+bms: 50ms check cells, trip_fault() if unsafe
+steering: on message can_recieve (sleeps until message) -> save angle
+state: 10ms buttons, state machine, relays
+lcd: 100ms print everyting
+ISRs: wheel teeth, timestamp only
+
+Shared
+CAN - no mutex, steering only caller of can_recieve, motor only calelr of
+can_send SPI - bms and lcd (mutex) state - mutex data - mutex, copy then release
+
+*/
+
+#include <arduino_freertos.h>
+#include <stdint.h>
+#include <semphr.h>
+
+// pins
+#define TS_ON_PIN 12
+#define RTD_PIN 13
+#define CURRENT_SENSOR_PIN 19
+#define CAN_RX_PIN 2
+#define CAN_TX_PIN 3
+#define MOSI_PIN 5
+#define MISO_PIN 6
+#define SCK_PIN 7
+#define LCD_CS_PIN 8
+#define BMS_CS_PIN 9
+#define AIR_POS_PIN 22
+#define PRECHARGE_PIN 23
+#define AIR_NEG_PIN 10
+
+#define WHEEL_FL_PIN 14
+#define WHEEL_FR_PIN 15
+#define WHEEL_RL_PIN 16
+#define WHEEL_RR_PIN 17
+
+// can
+#define CAN_BAUDRATE 500000
+
+#define CAN_ID_TORQUE_FL 0x10
+#define CAN_ID_TORQUE_FR 0x11
+#define CAN_ID_TORQUE_RL 0x12
+#define CAN_ID_TORQUE_RR 0x13
+#define CAN_ID_STEERING 0x20
+
+// bms
+#define CELL_COUNT 96
+#define V_MIN 2.8f
+#define V_MAX 4.3f
+#define T_MAX 60.0f
+
+#define PRECHARGE_TIME 5000
+
+/*
+  Initialize the CAN peripheral with given RX and TX pins at a given
+  baudrate.
 */
 extern void can_init(uint8_t rx, uint8_t tx, uint32_t baudrate);
 
@@ -145,16 +185,14 @@ extern void can_send(uint8_t id, uint64_t payload);
   Receive a CAN message with a given id into a uint64_t
 */
 extern void can_receive(uint64_t *payload, uint8_t id);
-
 /*
-  Calculates four torques, in order, for the Front Left, Front Right, Rear Left,
-  and Rear Right motors given current, wheelspeeds (in the same order), and a
-  steering angle.
+  Calculates four torques, in order, for the Front Left, Front Right, Rear
+  Left, and Rear Right motors given current, wheelspeeds (in the same
+  order), and a steering angle.
 */
 extern void calculate_torque_cmd(
   float *torques, float current, float *wheelspeeds, float steering_angle
 );
-
 /*
   Initialize the LCD peripheral
 */
@@ -180,6 +218,106 @@ extern float bms_get_voltage(uint8_t n);
 */
 extern float bms_get_temperature(uint8_t n);
 
-void setup(void) {}
+enum State { LV, PRECHARGE, TS, RTD };
+
+// everything LCD displays
+struct CarData {
+  float current;
+  float steering;
+  float wheelspeeds[4];
+  float torques[4];
+  float minV;
+  float maxV;
+  float maxT;
+};
+CarData carData = {}; // starts everything at 0
+
+State state = LV;
+bool fault = false;
+bool bmsHealthy = false;
+
+SemaphoreHandle_t dataMutex;
+SemaphoreHandle_t stateMutex;
+SemaphoreHandle_t spiMutex;
+
+void openRelays() {
+  digitalWrite(AIR_POS_PIN, arduino::LOW);
+  digitalWrite(PRECHARGE_PIN, arduino::LOW);
+  digitalWrite(AIR_NEG_PIN, arduino::LOW);
+}
+
+void tripFault() {}
+
+void motorTask(void *) {
+  TickType_t wake = xTaskGetTickCount();
+  while(true) {
+    vTaskDelayUntil(&wake, pdMS_TO_TICKS(1));
+  }
+}
+
+void bmsTask(void *) {
+  TickType_t wake = xTaskGetTickCount();
+  while(true) {
+    vTaskDelayUntil(&wake, pdMS_TO_TICKS(50));
+  }
+}
+
+void steeringTask(void *) {
+  while(true) {
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+}
+
+void stateTask(void *) {
+  TickType_t wake = xTaskGetTickCount();
+  while(true) {
+    vTaskDelayUntil(&wake, pdMS_TO_TICKS(10));
+  }
+}
+
+void lcdTask(void *) {
+  TickType_t wake = xTaskGetTickCount();
+  while(true) {
+    vTaskDelayUntil(&wake, pdMS_TO_TICKS(100));
+  }
+}
+
+void setup(void) {
+  digitalWrite(AIR_POS_PIN, arduino::LOW);
+  digitalWrite(PRECHARGE_PIN, arduino::LOW);
+  digitalWrite(AIR_NEG_PIN, arduino::LOW);
+  pinMode(AIR_POS_PIN, arduino::OUTPUT);
+  pinMode(PRECHARGE_PIN, arduino::OUTPUT);
+  pinMode(AIR_NEG_PIN, arduino::OUTPUT);
+
+  pinMode(TS_ON_PIN, arduino::INPUT_PULLUP);
+  pinMode(RTD_PIN, arduino::INPUT_PULLUP);
+  pinMode(CURRENT_SENSOR_PIN, arduino::INPUT);
+
+  dataMutex = xSemaphoreCreateMutex();
+  stateMutex = xSemaphoreCreateMutex();
+  spiMutex = xSemaphoreCreateMutex();
+  if(dataMutex == NULL || stateMutex == NULL || spiMutex == NULL) {
+    openRelays();
+    while(true) {}
+  }
+
+  can_init(CAN_RX_PIN, CAN_TX_PIN, CAN_BAUDRATE);
+  lcd_init(MOSI_PIN, MISO_PIN, SCK_PIN, LCD_CS_PIN);
+  bms_init(MOSI_PIN, MISO_PIN, SCK_PIN, BMS_CS_PIN);
+
+  BaseType_t ok = pdPASS;
+  ok &= xTaskCreate(motorTask, "motor", 512, NULL, 5, NULL);
+  ok &= xTaskCreate(bmsTask, "bms", 512, NULL, 4, NULL);
+  ok &= xTaskCreate(steeringTask, "steering", 512, NULL, 3, NULL);
+  ok &= xTaskCreate(stateTask, "state", 512, NULL, 2, NULL);
+  ok &= xTaskCreate(lcdTask, "lcd", 1024, NULL, 1, NULL);
+  if(ok != pdPASS) {
+    openRelays();
+    while(true) {}
+  }
+
+  vTaskStartScheduler();
+}
 
 void loop(void) {}
