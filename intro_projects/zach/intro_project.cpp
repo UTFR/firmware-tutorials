@@ -132,6 +132,7 @@ can_send SPI - bms and lcd (mutex) state - mutex data - mutex, copy then release
 #include <arduino_freertos.h>
 #include <stdint.h>
 #include <semphr.h>
+#include <math.h>
 
 // pins
 #define TS_ON_PIN 12
@@ -259,6 +260,49 @@ void motorTask(void *) {
 void bmsTask(void *) {
   TickType_t wake = xTaskGetTickCount();
   while(true) {
+    float minV = INFINITY;  // any real reading will be lower
+    float maxV = -INFINITY; // any real reading will be higher
+    float maxT = -INFINITY;
+    bool unsafe = false;
+
+    // reading, hold the SPI bus for the whole time
+    xSemaphoreTake(spiMutex, portMAX_DELAY);
+    for(uint8_t i = 0; i < CELL_COUNT; i++) {
+      float v = bms_get_voltage(i);
+      float t = bms_get_temperature(i);
+
+      // a broken reading will be treated as unsafe
+      if(isnan(v) || isnan(t)) {
+        unsafe = true;
+      }
+      if(v < minV) {
+        minV = v;
+      }
+      if(v > maxV) {
+        maxV = v;
+      }
+      if(t > maxT) {
+        maxT = t;
+      }
+    }
+    xSemaphoreGive(spiMutex);
+    // check the extremes against the limits
+    if(minV < V_MIN || maxV > V_MAX || maxT > T_MAX) {
+      unsafe = true;
+    }
+    if(unsafe) {
+      tripFault();
+    } else {
+      xSemaphoreTake(stateMutex, portMAX_DELAY);
+      bmsHealthy = true; // lets stateTask allow TS
+      xSemaphoreGive(stateMutex);
+    }
+    // share to LCD
+    xSemaphoreTake(dataMutex, portMAX_DELAY);
+    carData.minV = minV;
+    carData.maxV = maxV;
+    carData.maxT = maxT;
+    xSemaphoreGive(dataMutex);
     vTaskDelayUntil(&wake, pdMS_TO_TICKS(50));
   }
 }
@@ -275,9 +319,9 @@ void steeringTask(void *) {
 // settling
 struct Button {
   uint8_t pin;
-  bool lastReading;        // what we read last time (true = down)
-  bool stableDown = false; // the setteled state that we "trust"
-}
+  bool lastReading = false; // what we read last time (true = down)
+  bool stableDown = false;  // the setteled state that we "trust"
+};
 // call every 10ms, returns true only on the cycle a new press settles
 bool wasPressed(Button &button) {
   bool down = (digitalRead(button.pin) == arduino::LOW);
@@ -299,10 +343,9 @@ void stateTask(void *) {
   TickType_t wake = xTaskGetTickCount();
 
   while(true) {
-    bool tsPressed = wasPressed(tsButton) bool rtdPressed =
-      wasPressed(rtdButton)
-
-        xSemaphoreTake(stateMutex, portMAX_DELAY);
+    bool tsPressed = wasPressed(tsButton);
+    bool rtdPressed = wasPressed(rtdButton);
+    xSemaphoreTake(stateMutex, portMAX_DELAY);
 
     if(fault) {
     } // latched fault, ignore all buttons until reboot
