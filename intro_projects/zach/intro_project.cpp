@@ -197,29 +197,24 @@ extern void calculate_torque_cmd(
   Initialize the LCD peripheral
 */
 extern void lcd_init(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t lcs_cs);
-
 /*
   Print something to the LCD
 */
 extern void lcd_printf(const char *fmt, ...);
-
 /*
   Initialize the BMS
 */
 extern void bms_init(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t lcs_cs);
-
 /*
   Get voltage of the nth cell in the battery
 */
 extern float bms_get_voltage(uint8_t n);
-
 /*
   Get temperature of the nth cell in the battery
 */
 extern float bms_get_temperature(uint8_t n);
 
 enum State { LV, PRECHARGE, TS, RTD };
-
 // everything LCD displays
 struct CarData {
   float current;
@@ -246,7 +241,13 @@ void openRelays() {
   digitalWrite(AIR_NEG_PIN, arduino::LOW);
 }
 
-void tripFault() {}
+void tripFault() {
+  xSemaphoreTake(stateMutex, portMAX_DELAY);
+  openRelays();
+  fault = true;
+  state = LV;
+  xSemaphoreGive(stateMutex);
+}
 
 void motorTask(void *) {
   TickType_t wake = xTaskGetTickCount();
@@ -268,9 +269,69 @@ void steeringTask(void *) {
   }
 }
 
+// a button that reports each press exactly once, ignoring bounce and holding:
+// holding: holding the button should only react once per press, not every 10ms.
+// bounce: when a button is pressed, it may bounce between low and high before
+// settling
+struct Button {
+  uint8_t pin;
+  bool lastReading;        // what we read last time (true = down)
+  bool stableDown = false; // the setteled state that we "trust"
+}
+// call every 10ms, returns true only on the cycle a new press settles
+bool wasPressed(Button &button) {
+  bool down = (digitalRead(button.pin) == arduino::LOW);
+  bool pressed = false;
+  // same reading twice in a row = bouncing has stopped and if settled value
+  // differs from what we trusted, its a real change
+  if(down == button.lastReading && down != button.stableDown) {
+    button.stableDown = down;
+    pressed = down;
+  }
+  button.lastReading = down;
+  return pressed;
+}
+
 void stateTask(void *) {
+  Button tsButton = {TS_ON_PIN};
+  Button rtdButton = {RTD_PIN};
+  TickType_t pcStart = 0;
   TickType_t wake = xTaskGetTickCount();
+
   while(true) {
+    bool tsPressed = wasPressed(tsButton) bool rtdPressed =
+      wasPressed(rtdButton)
+
+        xSemaphoreTake(stateMutex, portMAX_DELAY);
+
+    if(fault) {
+    } // latched fault, ignore all buttons until reboot
+    else if(state == LV) {
+      // LV -> PRECHARGE
+      if(tsPressed && bmsHealthy) {
+        digitalWrite(AIR_NEG_PIN, arduino::HIGH);
+        digitalWrite(PRECHARGE_PIN, arduino::HIGH);
+        pcStart = xTaskGetTickCount();
+        state = PRECHARGE;
+      }
+    } else if(tsPressed) {
+      // PRECHARGE, TS, RTD + TS pressed -> normal shutdown (not a fault)
+      openRelays();
+      state = LV;
+    } else if(state == PRECHARGE) {
+      // PRECHARGE -> TS after 5s
+      if(xTaskGetTickCount() - pcStart >= pdMS_TO_TICKS(PRECHARGE_TIME)) {
+        digitalWrite(AIR_POS_PIN, arduino::HIGH);
+        digitalWrite(PRECHARGE_PIN, arduino::LOW);
+        state = TS;
+      }
+    } else if(state == TS) {
+      // TS -> RTD
+      if(rtdPressed) {
+        state = RTD;
+      }
+    }
+    xSemaphoreGive(stateMutex);
     vTaskDelayUntil(&wake, pdMS_TO_TICKS(10));
   }
 }
