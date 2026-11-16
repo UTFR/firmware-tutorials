@@ -133,6 +133,7 @@ can_send SPI - bms and lcd (mutex) state - mutex data - mutex, copy then release
 #include <stdint.h>
 #include <semphr.h>
 #include <math.h>
+#include <string.h>
 
 // pins
 #define TS_ON_PIN 12
@@ -162,6 +163,10 @@ can_send SPI - bms and lcd (mutex) state - mutex data - mutex, copy then release
 #define CAN_ID_TORQUE_RL 0x12
 #define CAN_ID_TORQUE_RR 0x13
 #define CAN_ID_STEERING 0x20
+
+const uint8_t TORQUE_IDS[4] = {
+  CAN_ID_TORQUE_FL, CAN_ID_TORQUE_FR, CAN_ID_TORQUE_RL, CAN_ID_TORQUE_RR
+};
 
 // bms
 #define CELL_COUNT 96
@@ -301,9 +306,59 @@ void readRPM(float *rpm) {
   }
 }
 
+// convert between torques/steering angles and CAN messages
+uint64_t encodeFloat(float value) {
+  uint32_t bits;
+  memcpy(&bits, &value, sizeof(bits));
+  return (uint64_t)bits;
+}
+
+float decodeFloat(uint64_t message) {
+  uint32_t bits = (uint32_t)message;
+  float value;
+  memcpy(&value, &bits, sizeof(value));
+  return value;
+}
+
 void motorTask(void *) {
   TickType_t wake = xTaskGetTickCount();
+
   while(true) {
+    // sensors
+    float current = readCurrent();
+    float rpm[4];
+    readRPM(rpm);
+
+    // latest steering
+    xSemaphoreTake(dataMutex, portMAX_DELAY);
+    float steering = carData.steering;
+    xSemaphoreGive(dataMutex);
+
+    // decide + send
+    float torques[4] = {0, 0, 0, 0};
+    xSemaphoreTake(stateMutex, portMAX_DELAY);
+    if(state == RTD && !fault) {
+      calculate_torque_cmd(torques, current, rpm, steering);
+      for(uint8_t i = 0; i < 4; i++) {
+        if(!isfinite(torques[i])) {
+          torques[i] = 0; // never send garbage to a motor
+        }
+      }
+    }
+    for(uint8_t i = 0; i < 4; i++) {
+      can_send(TORQUE_IDS[i], encodeFloat(torques[i]));
+    }
+    xSemaphoreGive(stateMutex);
+
+    // share for lcd
+    xSemaphoreTake(dataMutex, portMAX_DELAY);
+    carData.current = current;
+    for(uint8_t i = 0; i < 4; i++) {
+      carData.wheelspeeds[i] = rpm[i];
+      carData.torques[i] = torques[i];
+    }
+    xSemaphoreGive(dataMutex);
+
     vTaskDelayUntil(&wake, pdMS_TO_TICKS(1));
   }
 }
@@ -360,7 +415,15 @@ void bmsTask(void *) {
 
 void steeringTask(void *) {
   while(true) {
-    vTaskDelay(pdMS_TO_TICKS(10));
+    uint64_t message = 0;
+    can_receive(&message, CAN_ID_STEERING);
+    float angle = decodeFloat(message);
+
+    if(isfinite(angle)) {
+      xSemaphoreTake(dataMutex, portMAX_DELAY);
+      carData.steering = angle;
+      xSemaphoreGive(dataMutex);
+    }
   }
 }
 
