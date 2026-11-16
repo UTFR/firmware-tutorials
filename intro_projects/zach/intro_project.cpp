@@ -168,6 +168,8 @@ const uint8_t TORQUE_IDS[4] = {
   CAN_ID_TORQUE_FL, CAN_ID_TORQUE_FR, CAN_ID_TORQUE_RL, CAN_ID_TORQUE_RR
 };
 
+const char *WHEEL_NAMES[4] = {"FL", "FR", "RL", "RR"};
+
 // bms
 #define CELL_COUNT 96
 #define V_MIN 2.8f
@@ -493,9 +495,49 @@ void stateTask(void *) {
   }
 }
 
+const char *stateName(State s, bool faulted) {
+  if(faulted) {
+    return "FAULT";
+  }
+  switch(s) {
+  case LV:
+    return "LV";
+  case PRECHARGE:
+    return "PRECHARGE";
+  case TS:
+    return "TS";
+  case RTD:
+    return "RTD";
+  }
+  return "?";
+}
+
 void lcdTask(void *) {
   TickType_t wake = xTaskGetTickCount();
   while(true) {
+    xSemaphoreTake(dataMutex, portMAX_DELAY);
+    CarData moment = carData;
+    xSemaphoreGive(dataMutex);
+
+    xSemaphoreTake(stateMutex, portMAX_DELAY);
+    State s = state;
+    bool faulted = fault;
+    xSemaphoreGive(stateMutex);
+
+    xSemaphoreTake(spiMutex, portMAX_DELAY);
+    lcd_printf("State: %s\n", stateName(s, faulted));
+    lcd_printf("Current: %f A\n", moment.current);
+    lcd_printf("Steering: %f\n", moment.steering);
+    for(uint8_t i = 0; i < 4; i++) {
+      lcd_printf(
+        "%s: %f rpm, torque %f\n", WHEEL_NAMES[i], moment.wheelspeeds[i],
+        moment.torques[i]
+      );
+    }
+
+    lcd_printf("Cell V: %f to %f\n", moment.minV, moment.maxV);
+    lcd_printf("Max temp: %f C\n", moment.maxT);
+    xSemaphoreGive(spiMutex);
     vTaskDelayUntil(&wake, pdMS_TO_TICKS(100));
   }
 }
