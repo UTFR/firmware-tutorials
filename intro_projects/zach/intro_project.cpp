@@ -170,6 +170,10 @@ can_send SPI - bms and lcd (mutex) state - mutex data - mutex, copy then release
 #define T_MAX 60.0f
 
 #define PRECHARGE_TIME 5000
+#define ADC_REF_V 3.3f
+#define ADC_MAX 4095.0f
+#define AMPS_PER_VOLT 100.0f
+#define CURRENT_ZERO_V 0.0f
 
 /*
   Initialize the CAN peripheral with given RX and TX pins at a given
@@ -248,6 +252,12 @@ void tripFault() {
   fault = true;
   state = LV;
   xSemaphoreGive(stateMutex);
+}
+
+float readCurrent() {
+  int raw = analogRead(CURRENT_SENSOR_PIN);
+  float volts = raw * ADC_REF_V / ADC_MAX;
+  return (volts - CURRENT_ZERO_V) * AMPS_PER_VOLT;
 }
 
 void motorTask(void *) {
@@ -397,6 +407,7 @@ void setup(void) {
   pinMode(TS_ON_PIN, arduino::INPUT_PULLUP);
   pinMode(RTD_PIN, arduino::INPUT_PULLUP);
   pinMode(CURRENT_SENSOR_PIN, arduino::INPUT);
+  analogReadResolution(12);
 
   dataMutex = xSemaphoreCreateMutex();
   stateMutex = xSemaphoreCreateMutex();
