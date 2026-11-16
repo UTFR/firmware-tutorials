@@ -175,6 +175,8 @@ can_send SPI - bms and lcd (mutex) state - mutex data - mutex, copy then release
 #define AMPS_PER_VOLT 100.0f
 #define CURRENT_ZERO_V 0.0f
 
+#define WHEEL_TEETH 17
+
 /*
   Initialize the CAN peripheral with given RX and TX pins at a given
   baudrate.
@@ -240,6 +242,9 @@ SemaphoreHandle_t dataMutex;
 SemaphoreHandle_t stateMutex;
 SemaphoreHandle_t spiMutex;
 
+volatile uint32_t lastEdge[4] = {};   // when the last tooth passed
+volatile uint32_t lastPeriod[4] = {}; // time between the last two teeth
+
 void openRelays() {
   digitalWrite(AIR_POS_PIN, arduino::LOW);
   digitalWrite(PRECHARGE_PIN, arduino::LOW);
@@ -258,6 +263,42 @@ float readCurrent() {
   int raw = analogRead(CURRENT_SENSOR_PIN);
   float volts = raw * ADC_REF_V / ADC_MAX;
   return (volts - CURRENT_ZERO_V) * AMPS_PER_VOLT;
+}
+
+void wheelEdge(uint8_t i) {
+  uint32_t now = micros();
+  uint32_t elapsed = now - lastEdge[i];
+  // after a long gap (wheel has stopped), this tooth starts fresh with period
+  // unknown
+  lastPeriod[i] = (elapsed > 500000) ? 0 : elapsed;
+  lastEdge[i] = now;
+}
+
+void wheelFL() { wheelEdge(0); }
+void wheelFR() { wheelEdge(1); }
+void wheelRL() { wheelEdge(2); }
+void wheelRR() { wheelEdge(3); }
+
+void readRPM(float *rpm) {
+  uint32_t period[4];
+  uint32_t lastEdges[4];
+
+  noInterrupts();
+  for(uint8_t i = 0; i < 4; i++) {
+    period[i] = lastPeriod[i];
+    lastEdges[i] = lastEdge[i];
+  }
+  interrupts();
+
+  uint32_t now = micros();
+  for(uint8_t i = 0; i < 4; i++) {
+    bool stopped = (now - lastEdges[i]) > 500000;
+    if(stopped || period[i] == 0) {
+      rpm[i] = 0.0f;
+    } else {
+      rpm[i] = 60000000.0f / (WHEEL_TEETH * period[i]);
+    }
+  }
 }
 
 void motorTask(void *) {
@@ -408,6 +449,23 @@ void setup(void) {
   pinMode(RTD_PIN, arduino::INPUT_PULLUP);
   pinMode(CURRENT_SENSOR_PIN, arduino::INPUT);
   analogReadResolution(12);
+
+  pinMode(WHEEL_FL_PIN, arduino::INPUT_PULLUP);
+  pinMode(WHEEL_FR_PIN, arduino::INPUT_PULLUP);
+  pinMode(WHEEL_RL_PIN, arduino::INPUT_PULLUP);
+  pinMode(WHEEL_RR_PIN, arduino::INPUT_PULLUP);
+  attachInterrupt(
+    digitalPinToInterrupt(WHEEL_FL_PIN), wheelFL, arduino::FALLING
+  );
+  attachInterrupt(
+    digitalPinToInterrupt(WHEEL_FR_PIN), wheelFR, arduino::FALLING
+  );
+  attachInterrupt(
+    digitalPinToInterrupt(WHEEL_RL_PIN), wheelRL, arduino::FALLING
+  );
+  attachInterrupt(
+    digitalPinToInterrupt(WHEEL_RR_PIN), wheelRR, arduino::FALLING
+  );
 
   dataMutex = xSemaphoreCreateMutex();
   stateMutex = xSemaphoreCreateMutex();
