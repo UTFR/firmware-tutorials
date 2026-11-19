@@ -164,3 +164,58 @@ extern float bms_get_temperature(uint8_t n);
 void setup(void) {}
 
 void loop(void) {}
+
+// function declarations
+int shutDown(void);
+
+int main(void)
+{
+  // command each motor with an appropriate torque every 1ms
+  // print sensor values and torque values to the LCD every 100ms
+    // note: can_send and can_receive are not threadsafe - make a bus or a queue.
+  // monitor the highest/lowest voltage and highest temp from BMS, shutdown if unsafe
+  if (shutDown())
+  {
+    // shut down
+  }
+  return 0;
+}
+
+// function: shutdown the car if there are unsafe conditions in the battery, via BMS readings.
+int shutDown(void)
+{
+  float highVoltage = bms_get_voltage(0); // read high voltage from BMS
+  float lowVoltage = bms_get_voltage(0); // read low voltage from BMS
+  float highTemp = bms_get_temperature(0); // read highest temp from BMS
+
+  for (int i =1; i < 138, i++) // nov 18: there are 138 cells in the car, I think? said during elec core.
+  // 0th cell already tested when initializing the values
+  {
+    float newTemp = bms_get_temperature(i);
+    float newVoltage = bms_get_voltage(i);
+    // update values if we have new extremes.
+    if (newTemp > highTemp)
+    {
+      highTemp = newTemp;
+    }
+    if (newVoltage < lowVoltage)
+    {
+      lowVoltage = newVoltage;
+    }
+    if (newVoltage > highVoltage)
+    {
+      highVoltage = newVoltage;
+    }
+  }
+
+  // bad: volt below 2.8 above 4.3 or temp exceed 60
+
+  if (voltageDiff < 2.8 || voltageDiff > 4.3 || highTemp > 60)
+  {
+    return 1; // shutdown true
+  }
+  else
+  {
+    return 0; // shutdown false
+  }
+} 
